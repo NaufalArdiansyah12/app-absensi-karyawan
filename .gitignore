@@ -1,0 +1,11 @@
+node_modules
+.next
+.wrangler
+dist
+build
+.dart_tool
+.flutter-plugins
+.flutter-plugins-dependencies
+.env
+.env.local
+*.log

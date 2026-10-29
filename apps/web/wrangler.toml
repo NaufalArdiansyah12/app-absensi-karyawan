@@ -1,0 +1,14 @@
+name = "nutrilife-hris"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "db_absensi_karyawan"
+database_id = "4ddce4c1-b41f-4733-8928-0e984f8d925d"
+migrations_dir = "db/migrations"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "nutrilife-hris-media"
