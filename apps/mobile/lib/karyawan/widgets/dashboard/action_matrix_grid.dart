@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
 
 class ActionMatrixGrid extends StatelessWidget {
+  final String? approvalBadge;
   final VoidCallback onLeaveTap;
   final VoidCallback onBreakTap;
   final VoidCallback onVisitTap;
@@ -9,10 +10,11 @@ class ActionMatrixGrid extends StatelessWidget {
   final VoidCallback onApprovalTap;
   final VoidCallback onHistoryLogTap;
   final VoidCallback onReportLogTap;
-  final VoidCallback onOthersTap;
+  final VoidCallback onSickLeaveTap;
 
   const ActionMatrixGrid({
     super.key,
+    this.approvalBadge,
     required this.onLeaveTap,
     required this.onBreakTap,
     required this.onVisitTap,
@@ -20,7 +22,7 @@ class ActionMatrixGrid extends StatelessWidget {
     required this.onApprovalTap,
     required this.onHistoryLogTap,
     required this.onReportLogTap,
-    required this.onOthersTap,
+    required this.onSickLeaveTap,
   });
 
   @override
@@ -32,7 +34,7 @@ class ActionMatrixGrid extends StatelessWidget {
             Expanded(
               child: _buildTile(
                 icon: Icons.event_busy_rounded,
-                label: 'Leave',
+                label: 'Cuti / Libur',
                 bgColor: const Color(0xFFFDF2F2),
                 iconColor: const Color(0xFFC81E1E),
                 onTap: onLeaveTap,
@@ -42,7 +44,7 @@ class ActionMatrixGrid extends StatelessWidget {
             Expanded(
               child: _buildTile(
                 icon: Icons.coffee_rounded,
-                label: 'Break',
+                label: 'Istirahat',
                 bgColor: const Color(0xFFFFFBEB),
                 iconColor: const Color(0xFFD97706),
                 onTap: onBreakTap,
@@ -52,7 +54,7 @@ class ActionMatrixGrid extends StatelessWidget {
             Expanded(
               child: _buildTile(
                 icon: Icons.location_on_rounded,
-                label: 'Visit',
+                label: 'Kunjungan',
                 bgColor: const Color(0xFFECFDF5),
                 iconColor: const Color(0xFF059669),
                 onTap: onVisitTap,
@@ -62,7 +64,7 @@ class ActionMatrixGrid extends StatelessWidget {
             Expanded(
               child: _buildTile(
                 icon: Icons.timer_outlined,
-                label: 'Overtime',
+                label: 'Lembur',
                 bgColor: const Color(0xFFFEF9C3),
                 iconColor: const Color(0xFFCA8A04),
                 onTap: onOvertimeTap,
@@ -76,10 +78,12 @@ class ActionMatrixGrid extends StatelessWidget {
             Expanded(
               child: _buildTile(
                 icon: Icons.assignment_turned_in_outlined,
-                label: 'Approval',
+                label: 'Persetujuan',
                 bgColor: const Color(0xFFEFF6FF),
                 iconColor: const Color(0xFF2563EB),
-                badge: '2',
+                badge: (approvalBadge != null && approvalBadge != '0')
+                    ? approvalBadge
+                    : null,
                 onTap: onApprovalTap,
               ),
             ),
@@ -87,7 +91,7 @@ class ActionMatrixGrid extends StatelessWidget {
             Expanded(
               child: _buildTile(
                 icon: Icons.forum_outlined,
-                label: 'History Log',
+                label: 'Riwayat Log',
                 bgColor: const Color(0xFFFFF7ED),
                 iconColor: const Color(0xFFEA580C),
                 onTap: onHistoryLogTap,
@@ -97,7 +101,7 @@ class ActionMatrixGrid extends StatelessWidget {
             Expanded(
               child: _buildTile(
                 icon: Icons.bookmark_added_outlined,
-                label: 'Report Log',
+                label: 'Laporan Log',
                 bgColor: const Color(0xFFF0F9FF),
                 iconColor: const Color(0xFF0284C7),
                 onTap: onReportLogTap,
@@ -106,11 +110,11 @@ class ActionMatrixGrid extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: _buildTile(
-                icon: Icons.grid_view_rounded,
-                label: 'Others',
-                bgColor: const Color(0xFFFDF2F8),
-                iconColor: const Color(0xFFDB2777),
-                onTap: onOthersTap,
+                icon: Icons.medical_services_outlined,
+                label: 'Izin Sakit',
+                bgColor: const Color(0xFFFEF3C7),
+                iconColor: const Color(0xFFD97706),
+                onTap: onSickLeaveTap,
               ),
             ),
           ],
@@ -190,6 +194,7 @@ class ActionMatrixGrid extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,

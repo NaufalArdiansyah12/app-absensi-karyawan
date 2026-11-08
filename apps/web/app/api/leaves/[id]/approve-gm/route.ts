@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth-jwt";
 import { dataStore } from "@/lib/store";
 import { transitionLeaveStatus } from "@/lib/leave-machine";
+import { syncLeaveGmApprovalToD1, getKaryawanIdByNik } from "@/lib/d1-client";
 
 export async function PATCH(
   request: Request,
@@ -34,6 +35,17 @@ export async function PATCH(
     leave.status = transition.nextStatus;
     leave.gmNote = note || "";
     leave.gmApprovedAt = Date.now();
+
+    // Persist status approval GM ke Cloudflare D1
+    const employee = dataStore.users.find((u) => u.id === leave.userId);
+    const karyawanId = employee ? getKaryawanIdByNik(employee.nik) : 5;
+    await syncLeaveGmApprovalToD1({
+      karyawanId,
+      tanggalMulai: leave.startDate,
+      approved: action === "APPROVE",
+      gmUserId: 2,
+      gmNote: note,
+    }).catch((e) => console.warn("[D1 Sync GM Approval Error]", e));
 
     dataStore.auditLogs.unshift({
       id: `log_${Date.now()}`,

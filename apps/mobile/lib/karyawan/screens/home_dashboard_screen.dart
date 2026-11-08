@@ -1,17 +1,23 @@
+import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../models/attendance_model.dart';
+import '../../models/leave_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../widgets/attendance/attendance_timeline_modal.dart';
 import '../widgets/dashboard/action_matrix_grid.dart';
 import '../widgets/dashboard/app_top_bar.dart';
 import '../widgets/dashboard/attendance_hero_card.dart';
 import '../widgets/dashboard/greeting_header.dart';
-import '../widgets/dashboard/history_preview_section.dart';
-import 'attendance_camera_screen.dart';
+import '../widgets/dashboard/employee_info_hub_section.dart';
 import 'profile_screen.dart';
 import 'schedule_screen.dart';
 import 'services_screen.dart';
+import 'sick_leave_screen.dart';
 
 class HomeDashboardScreen extends StatefulWidget {
   final UserModel currentUser;
@@ -26,38 +32,143 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   int _currentTabIndex = 0;
   late UserModel _user;
   List<AttendanceModel> _recentAttendances = [];
-  bool _isLoading = true;
+  List<LeaveModel> _recentLeaves = [];
   String? _todayCheckIn;
   String? _todayCheckOut;
+  int _yearlyPresenceDays = 0;
+  int _monthlyPresenceDays = 0;
+  int _sickLeaveCount = 0;
+  int _pendingApprovalCount = 0;
+  Timer? _autoRefreshTimer;
 
   @override
   void initState() {
     super.initState();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _user = widget.currentUser;
+    _requestLocationPermissionInAdvance();
     _refreshData();
+    // Real-time background sync every 15 detik
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted) {
+        _refreshData(showIndicator: false);
+      }
+    });
   }
 
-  Future<void> _refreshData() async {
-    setState(() => _isLoading = true);
+  Future<void> _requestLocationPermissionInAdvance() async {
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        await Geolocator.requestPermission();
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _autoRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refreshData({bool showIndicator = true}) async {
     try {
       final updatedProfile = await ApiService.getProfile();
       final history = await ApiService.getAttendanceHistory();
+      final leavesRes = await ApiService.getMyLeaves();
 
-      String? todayIn;
-      String? todayOut;
-      if (history.isNotEmpty) {
-        todayIn = history.first.checkInTime;
-        todayOut = history.first.checkOutTime;
+      final leavesList = leavesRes['leaves'] as List<LeaveModel>;
+      final updatedQuota = leavesRes['leaveQuota'] as int;
+
+      final now = DateTime.now();
+      final todayStr =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final currentYearPrefix = '${now.year}-';
+      final currentMonthPrefix =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
+      // Cari rekam absensi tanggal hari ini secara realtime
+      final todayRecord = history.cast<AttendanceModel?>().firstWhere(
+            (a) => a?.date == todayStr,
+            orElse: () => null,
+          );
+
+      // Hitung kehadiran tahun berjalan (reset tiap tahun)
+      final yearlyPresence =
+          history.where((a) => a.date.startsWith(currentYearPrefix)).length;
+
+      // Hitung kehadiran bulan berjalan secara realtime
+      final monthlyPresence =
+          history.where((a) => a.date.startsWith(currentMonthPrefix)).length;
+
+      // Hitung izin sakit yang telah disetujui pada tahun berjalan (reset tiap tahun)
+      final realSickCount = leavesList
+          .where((l) =>
+              l.type == 'IZIN_SAKIT' &&
+              l.status == 'FINAL_DISETUJUI' &&
+              l.startDate.startsWith(currentYearPrefix))
+          .length;
+
+      // Hitung permohonan yang masih dalam proses approval
+      final pendingCount = leavesList
+          .where((l) => l.status == 'MENUNGGU_GM' || l.status == 'MENUNGGU_HR')
+          .length;
+
+      if (mounted) {
+        setState(() {
+          _user = updatedProfile.leaveQuota != updatedQuota
+              ? UserModel(
+                  id: updatedProfile.id,
+                  nik: updatedProfile.nik,
+                  name: updatedProfile.name,
+                  email: updatedProfile.email,
+                  role: updatedProfile.role,
+                  division: updatedProfile.division,
+                  jobPosition: updatedProfile.jobPosition,
+                  leaveQuota: updatedQuota,
+                )
+              : updatedProfile;
+          _recentAttendances = history;
+          _recentLeaves = leavesList;
+          _todayCheckIn = todayRecord?.checkInTime;
+          _todayCheckOut = todayRecord?.checkOutTime;
+          _yearlyPresenceDays = yearlyPresence;
+          _monthlyPresenceDays = monthlyPresence;
+          _sickLeaveCount = realSickCount;
+          _pendingApprovalCount = pendingCount;
+        });
       }
-
-      setState(() {
-        _user = updatedProfile;
-        _recentAttendances = history;
-        _todayCheckIn = todayIn;
-        _todayCheckOut = todayOut;
-      });
     } catch (_) {}
-    setState(() => _isLoading = false);
+  }
+
+  String _getFormattedDate() {
+    final now = DateTime.now();
+    const days = [
+      'Minggu',
+      'Senin',
+      'Selasa',
+      'Rabu',
+      'Kamis',
+      'Jumat',
+      'Sabtu'
+    ];
+    const months = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember'
+    ];
+    final day = days[now.weekday % 7];
+    final month = months[now.month - 1];
+    return '$day, ${now.day} $month ${now.year}';
   }
 
   void _showToast(String message) {
@@ -66,12 +177,14 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle_rounded, color: AppTheme.secondary, size: 18),
+            const Icon(Icons.check_circle_rounded,
+                color: AppTheme.secondary, size: 18),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -84,237 +197,253 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     );
   }
 
-  Future<void> _openCamera() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const AttendanceCameraScreen()),
+  Future<void> _openAttendanceModal({required bool isCheckIn}) async {
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => AttendanceTimelineModal(
+        isCheckIn: isCheckIn,
+        currentUser: _user,
+        onSuccess: (msg) => _showToast(msg),
+      ),
     );
-    _refreshData();
+
+    if (result == true) {
+      _refreshData(showIndicator: true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
+      extendBody: true, // Memungkinkan efek liquid glass memburamkan konten di baliknya
       body: IndexedStack(
         index: _currentTabIndex,
         children: [
-          // Index 0: Dashboard
           _buildDashboardTab(),
-          // Index 1: Jadwal
           ScheduleScreen(onBackToHome: () => setState(() => _currentTabIndex = 0)),
-          // Index 2: Placeholder for center camera button (handled by onTap)
-          const SizedBox.shrink(),
-          // Index 3: Layanan (Services)
           ServicesScreen(currentUser: _user),
-          // Index 4: Profile
           ProfileScreen(user: _user),
         ],
       ),
-      bottomNavigationBar: _buildProminentBottomDock(),
+      bottomNavigationBar: _buildLiquidGlassBottomDock(),
     );
   }
 
   Widget _buildDashboardTab() {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.primary,
       appBar: AppTopBar(
         user: _user,
-        onNotificationTap: () => _showToast('1 Pengumuman Baru: Sosialisasi Shift Kerja 2026'),
+        onNotificationTap: () =>
+            _showToast('Sistem absensi GPS & Face Verification aktif'),
       ),
-      body: RefreshIndicator(
-        onRefresh: _refreshData,
-        color: AppTheme.primary,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              GreetingHeader(
-                userName: _user.name,
-                formattedDate: '29 Oktober 2026',
-              ),
-              const SizedBox(height: 12),
-              AttendanceHeroCard(
-                presenceDays: _recentAttendances.length,
-                sickCount: 1,
-                leaveQuota: _user.leaveQuota,
-                checkInTime: _todayCheckIn,
-                checkOutTime: _todayCheckOut,
-                onCheckInTap: _openCamera,
-                onCheckOutTap: _openCamera,
-              ),
-              const SizedBox(height: 16),
-              ActionMatrixGrid(
-                onLeaveTap: () => setState(() => _currentTabIndex = 3),
-                onBreakTap: () => _showToast('Waktu istirahat shift: 12:00 - 13:00 WIB'),
-                onVisitTap: () => _showToast('Fitur Kunjungan Luar / Visit Geotag'),
-                onOvertimeTap: () {
-                  setState(() => _currentTabIndex = 3);
-                },
-                onApprovalTap: () => _showToast('2 Pengajuan Menunggu Review GM & HR'),
-                onHistoryLogTap: () => _showToast('Riwayat Absensi: ${_recentAttendances.length} catatan'),
-                onReportLogTap: () => _showToast('Rekap Laporan Kehadiran Bulanan Siap'),
-                onOthersTap: () => setState(() => _currentTabIndex = 4),
-              ),
-              const SizedBox(height: 16),
-              HistoryPreviewSection(
-                attendances: _recentAttendances,
-                isLoading: _isLoading,
-                onSyncAll: () async {
-                  _showToast('Menghubungkan data absensi...');
-                  await _refreshData();
-                  _showToast('Semua data absensi telah tersinkronisasi');
-                },
-                onSeeMore: () => _showToast('Menampilkan seluruh arsip riwayat bulan ini'),
-              ),
-              const SizedBox(height: 32),
-            ],
+      body: AppTheme.curvedBody(
+        RefreshIndicator(
+          onRefresh: () => _refreshData(showIndicator: true),
+          color: AppTheme.primary,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GreetingHeader(
+                  userName: _user.name,
+                  formattedDate: _getFormattedDate(),
+                ),
+                const SizedBox(height: 12),
+                AttendanceHeroCard(
+                  presenceDays: _yearlyPresenceDays,
+                  sickCount: _sickLeaveCount,
+                  leaveQuota: _user.leaveQuota,
+                  checkInTime: _todayCheckIn,
+                  checkOutTime: _todayCheckOut,
+                  onCheckInTap: () => _openAttendanceModal(isCheckIn: true),
+                  onCheckOutTap: () => _openAttendanceModal(isCheckIn: false),
+                ),
+                const SizedBox(height: 16),
+                ActionMatrixGrid(
+                  approvalBadge: _pendingApprovalCount > 0
+                      ? '$_pendingApprovalCount'
+                      : null,
+                  onLeaveTap: () => setState(() => _currentTabIndex = 2),
+                  onBreakTap: () =>
+                      _showToast('Waktu istirahat reguler: 12:00 - 13:00 WIB'),
+                  onVisitTap: () => _showToast('Kunjungan Luar / Visit Geotag'),
+                  onOvertimeTap: () => setState(() => _currentTabIndex = 2),
+                  onApprovalTap: () {
+                    setState(() => _currentTabIndex = 2);
+                    _showToast(
+                      _pendingApprovalCount > 0
+                          ? '$_pendingApprovalCount permohonan dalam proses review'
+                          : 'Belum ada permohonan pending',
+                    );
+                  },
+                  onHistoryLogTap: () => _showToast(
+                      'Riwayat kehadiran: ${_recentAttendances.length} log tersimpan'),
+                  onReportLogTap: () => _showToast(
+                      'Kehadiran bulan ini: $_monthlyPresenceDays hari kerja'),
+                  onSickLeaveTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SickLeaveScreen(currentUser: _user),
+                      ),
+                    );
+                    _refreshData(showIndicator: false);
+                  },
+                ),
+                const SizedBox(height: 16),
+                EmployeeInfoHubSection(
+                  monthlyPresenceDays: _monthlyPresenceDays,
+                  sickLeaveCount: _sickLeaveCount,
+                  leaveQuota: _user.leaveQuota,
+                  recentLeaves: _recentLeaves,
+                  onNavigateToSchedule: () =>
+                      setState(() => _currentTabIndex = 1),
+                  onNavigateToLeaves: () =>
+                      setState(() => _currentTabIndex = 2),
+                  onAnnouncementTap: () => _showToast(
+                      'Sosialisasi Jam Kerja: Berlaku efektif mulai minggu ini.'),
+                ),
+                const SizedBox(height: 120), // Spasi agar tidak tertutup dock melayang
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // 5-Tab Navigation Dock with Prominent Elevated Center Button
-  Widget _buildProminentBottomDock() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: const Border(top: BorderSide(color: AppTheme.border, width: 1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -3),
-          )
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 62,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              // 1. Dashboard
-              _buildNavItem(
-                index: 0,
-                icon: Icons.dashboard_outlined,
-                activeIcon: Icons.dashboard_rounded,
-                label: 'Dashboard',
-              ),
+  // Liquid Glass Floating Navigation Dock
+  Widget _buildLiquidGlassBottomDock() {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
-              // 2. Jadwal
-              _buildNavItem(
-                index: 1,
-                icon: Icons.calendar_today_outlined,
-                activeIcon: Icons.calendar_month_rounded,
-                label: 'Jadwal',
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + bottomInset * 0.5),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.white.withValues(alpha: 0.88),
+                  Colors.white.withValues(alpha: 0.75),
+                ],
               ),
-
-              // 3. ABSENSI (PROMINENT CENTER BUTTON)
-              _buildProminentCenterButton(),
-
-              // 4. Layanan
-              _buildNavItem(
-                index: 3,
-                icon: Icons.workspaces_outline,
-                activeIcon: Icons.workspaces_rounded,
-                label: 'Layanan',
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.90),
+                width: 1.5,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primary.withValues(alpha: 0.12),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // 1. Beranda
+                _buildLiquidNavItem(
+                  index: 0,
+                  icon: Icons.dashboard_outlined,
+                  activeIcon: Icons.dashboard_rounded,
+                  label: 'Beranda',
+                ),
 
-              // 5. Profil
-              _buildNavItem(
-                index: 4,
-                icon: Icons.person_outline_rounded,
-                activeIcon: Icons.person_rounded,
-                label: 'Profil',
-              ),
-            ],
+                // 2. Jadwal
+                _buildLiquidNavItem(
+                  index: 1,
+                  icon: Icons.calendar_today_outlined,
+                  activeIcon: Icons.calendar_month_rounded,
+                  label: 'Jadwal',
+                ),
+
+                // 3. Layanan
+                _buildLiquidNavItem(
+                  index: 2,
+                  icon: Icons.workspaces_outline,
+                  activeIcon: Icons.workspaces_rounded,
+                  label: 'Layanan',
+                ),
+
+                // 4. Profil
+                _buildLiquidNavItem(
+                  index: 3,
+                  icon: Icons.person_outline_rounded,
+                  activeIcon: Icons.person_rounded,
+                  label: 'Profil',
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildNavItem({
+  Widget _buildLiquidNavItem({
     required int index,
     required IconData icon,
     required IconData activeIcon,
     required String label,
   }) {
     final isSelected = _currentTabIndex == index;
+
     return Expanded(
       child: InkWell(
         onTap: () => setState(() => _currentTabIndex = index),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              size: 22,
-              color: isSelected ? AppTheme.primary : AppTheme.textMuted,
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? AppTheme.primary : AppTheme.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Circular Elevated Center Button
-  Widget _buildProminentCenterButton() {
-    return Expanded(
-      child: Transform.translate(
-        offset: const Offset(0, -12),
-        child: InkWell(
-          onTap: _openCamera,
-          borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 50,
-                height: 50,
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppTheme.primary, AppTheme.secondary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.primary.withValues(alpha: 0.35),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    )
-                  ],
+                  color: isSelected
+                      ? AppTheme.primary.withValues(alpha: 0.12)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                  border: isSelected
+                      ? Border.all(
+                          color: AppTheme.primary.withValues(alpha: 0.20),
+                          width: 1,
+                        )
+                      : null,
                 ),
-                child: const Icon(
-                  Icons.camera_alt_rounded,
-                  color: Colors.white,
-                  size: 24,
+                child: Icon(
+                  isSelected ? activeIcon : icon,
+                  size: 20,
+                  color: isSelected ? AppTheme.primary : AppTheme.textMuted,
                 ),
               ),
               const SizedBox(height: 2),
-              const Text(
-                'Absensi',
+              Text(
+                label,
                 style: TextStyle(
                   fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.primary,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? AppTheme.primary : AppTheme.textSecondary,
                 ),
               ),
             ],

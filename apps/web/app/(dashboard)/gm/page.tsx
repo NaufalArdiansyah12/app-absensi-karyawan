@@ -1,225 +1,155 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CheckCircle2, XCircle, AlertCircle, Clock, Calendar, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { AlertTriangle, ArrowRight, CheckCircle2, ChevronRight, Clock, Users } from "lucide-react";
+import { AttModal, LeaveModal } from "@/components/gm-modals";
+import {
+  AttBadge, Bar, CalendarWidget, Empty, Kpi, LeaveBadge, PageHead, card, linkBtn, th, typeLabel, useGMData,
+} from "@/components/gm-shared";
 
 export default function GMDashboardPage() {
-  const [pendingLeaves, setPendingLeaves] = useState<any[]>([]);
-  const [attendances, setAttendances] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState<string | null>(null);
-  const [noteMap, setNoteMap] = useState<Record<string, string>>({});
+  const { leaves, attendances, reload } = useGMData();
+  const [leaveSel, setLeaveSel] = useState<any | null>(null);
+  const [attSel, setAttSel] = useState<any | null>(null);
 
-  const loadData = async () => {
-    try {
-      const [leaveRes, attRes] = await Promise.all([
-        fetch("/api/leaves/pending"),
-        fetch("/api/attendance/history"),
-      ]);
-
-      const [leaveData, attData]: any[] = await Promise.all([leaveRes.json(), attRes.json()]);
-
-      if (leaveData.pendingLeaves) setPendingLeaves(leaveData.pendingLeaves);
-      if (attData.attendances) setAttendances(attData.attendances);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const handleAction = async (id: string, action: "APPROVE" | "REJECT") => {
-    setProcessingId(id);
-    try {
-      const res = await fetch(`/api/leaves/${id}/approve-gm`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          note: noteMap[id] || (action === "APPROVE" ? "Disetujui GM" : "Ditolak GM"),
-        }),
-      });
-
-      if (res.ok) {
-        await loadData();
-      } else {
-        const err: any = await res.json();
-        alert(err.error || "Gagal memproses approval GM");
-      }
-    } catch (err: any) {
-      alert(err.message || "Kesalahan jaringan");
-    } finally {
-      setProcessingId(null);
-    }
-  };
+  const pending = leaves.filter((l) => l.status === "MENUNGGU_GM");
+  const hadir = attendances.filter((a) => a.status === "TEPAT_WAKTU" || a.status === "TERLAMBAT");
+  const onTime = hadir.filter((a) => a.status === "TEPAT_WAKTU").length;
+  const late = hadir.length - onTime;
+  const pct = hadir.length ? Math.round((onTime / hadir.length) * 100) : 0;
+  const recent = [...attendances].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Dashboard General Manager (GM)</h1>
-        <p className="text-xs text-slate-500">
-          Pemantauan kedisiplinan operasional divisi & persetujuan izin/cuti Tahap 1.
-        </p>
-      </div>
-
-      {/* Alur Approval Infographic */}
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 text-xs text-emerald-950">
-        <div className="font-semibold text-emerald-900 flex items-center gap-1.5">
-          <ShieldCheck className="h-4 w-4 text-emerald-600" /> Alur Approval Persetujuan Cuti / Libur:
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+      <div className="flex flex-col gap-6 xl:col-span-8">
+        <PageHead title="Dashboard GM" desc="Ringkasan operasional dan antrean approval hari ini." />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Kpi label="Total Presensi" value={attendances.length} icon={Users} />
+          <Kpi label="Tepat Waktu" value={onTime} icon={CheckCircle2} />
+          <Kpi label="Terlambat" value={late} icon={AlertTriangle} />
+          <Kpi label="Menunggu Approval" value={pending.length} icon={Clock} />
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2 font-mono text-[11px]">
-          <span className="rounded bg-white px-2 py-1 shadow-xs border border-emerald-200">
-            [Pekerja Mengemukakan]
-          </span>
-          <span>→</span>
-          <span className="rounded bg-amber-100 font-bold px-2 py-1 text-amber-800 border border-amber-300">
-            [Status: Menunggu GM] (Anda)
-          </span>
-          <span>→</span>
-          <span className="rounded bg-white px-2 py-1 shadow-xs border border-emerald-200">
-            [Status: Menunggu HR]
-          </span>
-          <span>→</span>
-          <span className="rounded bg-emerald-100 font-bold px-2 py-1 text-emerald-800 border border-emerald-300">
-            [Disetujui HR (Final)]
-          </span>
-        </div>
-      </div>
 
-      {/* Antrean Approval Cuti Tahap 1 (GM) */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between pb-4">
+        <div className={`${card} flex flex-col gap-5`}>
           <div>
-            <h2 className="text-sm font-bold text-slate-800">
-              Antrean Permohonan Cuti / Izin (Menunggu GM)
-            </h2>
-            <p className="text-[11px] text-slate-500">
-              Persetujuan Tahap 1 sebelum diteruskan ke HR untuk validasi final & pemotongan kuota.
-            </p>
+            <h2 className="text-base font-bold text-zinc-900">Antrean Cuti & Izin</h2>
+            <p className="text-xs text-zinc-500">Menunggu persetujuan GM (Tahap 1 dari 2)</p>
           </div>
-          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
-            {pendingLeaves.length} Permohonan
-          </span>
-        </div>
-
-        {pendingLeaves.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-xs text-slate-400">
-            Tidak ada permohonan yang menunggu persetujuan GM saat ini.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {pendingLeaves.map((leave) => (
-              <div
-                key={leave.id}
-                className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">{leave.userName}</div>
-                    <div className="text-[11px] text-slate-500">
-                      Divisi {leave.userDivision} • {leave.type.replace("_", " ")}
-                    </div>
-                  </div>
-                  <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                    Menunggu GM
-                  </span>
-                </div>
-
-                <div className="rounded bg-white p-2.5 text-xs text-slate-700 border border-slate-100 space-y-1">
-                  <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span>
-                      {leave.startDate} s/d {leave.endDate} (<strong>{leave.durationDays} Hari</strong>)
-                    </span>
-                  </div>
-                  <div className="text-slate-600 italic">"{leave.reason}"</div>
-                </div>
-
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Catatan GM (opsional)..."
-                    value={noteMap[leave.id] || ""}
-                    onChange={(e) =>
-                      setNoteMap({ ...noteMap, [leave.id]: e.target.value })
-                    }
-                    className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-emerald-500"
-                  />
-                </div>
-
-                <div className="flex gap-2 pt-1">
-                  <button
-                    disabled={processingId === leave.id}
-                    onClick={() => handleAction(leave.id, "REJECT")}
-                    className="flex-1 rounded-lg border border-rose-300 bg-white py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
-                  >
-                    Tolak oleh GM
-                  </button>
-                  <button
-                    disabled={processingId === leave.id}
-                    onClick={() => handleAction(leave.id, "APPROVE")}
-                    className="flex-1 rounded-lg bg-emerald-600 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-                  >
-                    Disetujui oleh GM
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Monitoring Kehadiran Divisi */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between pb-4">
-          <h2 className="text-sm font-bold text-slate-800">
-            Pantauan Kehadiran Hari Ini (Real-Time GPS Check-in)
-          </h2>
-          <span className="text-xs text-slate-500">{attendances.length} Terdata</span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-500">
-              <tr>
-                <th className="py-2.5 px-3">Karyawan</th>
-                <th className="py-2.5 px-3">Tanggal</th>
-                <th className="py-2.5 px-3">Jam Masuk</th>
-                <th className="py-2.5 px-3">Jam Pulang</th>
-                <th className="py-2.5 px-3">Jarak ke Kantor</th>
-                <th className="py-2.5 px-3">Status Kedisiplinan</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
-              {attendances.map((a) => (
-                <tr key={a.id} className="hover:bg-slate-50">
-                  <td className="py-2 px-3 font-semibold text-slate-900">{a.userName}</td>
-                  <td className="py-2 px-3 text-slate-500">{a.date}</td>
-                  <td className="py-2 px-3 font-mono">{a.checkInTime}</td>
-                  <td className="py-2 px-3 font-mono">{a.checkOutTime || "—"}</td>
-                  <td className="py-2 px-3 font-mono">{a.checkInDistanceMeters} m</td>
-                  <td className="py-2 px-3">
-                    <span
-                      className={`rounded px-2 py-0.5 font-bold text-[10px] ${
-                        a.status === "TEPAT_WAKTU"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-amber-100 text-amber-800"
-                      }`}
-                    >
-                      {a.status}
-                      {a.lateMinutes > 0 ? ` (+${a.lateMinutes} mnt)` : ""}
-                    </span>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-zinc-100 text-zinc-400">
+                  <th className={th}>Karyawan</th>
+                  <th className={th}>Jenis</th>
+                  <th className={th}>Progres</th>
+                  <th className={th}>Status</th>
+                  <th className={th}>Periode</th>
+                  <th className={`${th} text-right`}>Aksi</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-zinc-50 font-medium text-zinc-800">
+                {pending.length === 0 && <Empty cols={6} text="Tidak ada permohonan yang menunggu persetujuan GM." />}
+                {pending.map((l) => (
+                  <tr key={l.id} className="transition-colors hover:bg-zinc-50/50">
+                    <td className="py-3.5">
+                      <div className="font-bold text-zinc-900">{l.userName}</div>
+                      <div className="text-[11px] text-zinc-400">{l.userDivision}</div>
+                    </td>
+                    <td className="py-3.5">{typeLabel(l.type)}</td>
+                    <td className="py-3.5"><Bar pct={0} /></td>
+                    <td className="py-3.5"><LeaveBadge status={l.status} /></td>
+                    <td className="py-3.5 text-zinc-500">
+                      {l.startDate} s/d {l.endDate}
+                      <div className="text-[11px] text-zinc-400">{l.durationDays} hari</div>
+                    </td>
+                    <td className="py-3.5 text-right">
+                      <button onClick={() => setLeaveSel(l)} className={linkBtn}>Proses <ChevronRight className="h-3 w-3" /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className={`${card} flex flex-col gap-5`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-zinc-900">Kehadiran Terbaru</h2>
+              <p className="text-xs text-zinc-500">Check-in GPS real-time</p>
+            </div>
+            <Link href="/gm/absensi" className={linkBtn}>Lihat semua <ChevronRight className="h-3 w-3" /></Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-zinc-100 text-zinc-400">
+                  <th className={th}>Karyawan</th>
+                  <th className={th}>Masuk</th>
+                  <th className={th}>Pulang</th>
+                  <th className={th}>Jarak</th>
+                  <th className={th}>Status</th>
+                  <th className={`${th} text-right`}>Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50 font-medium text-zinc-800">
+                {recent.length === 0 && <Empty cols={6} text="Belum ada data kehadiran." />}
+                {recent.map((a) => (
+                  <tr key={a.id} className="transition-colors hover:bg-zinc-50/50">
+                    <td className="py-3.5">
+                      <div className="font-bold text-zinc-900">{a.userName}</div>
+                      <div className="text-[11px] text-zinc-400">{a.date}</div>
+                    </td>
+                    <td className="py-3.5">{a.checkInTime || "-"}</td>
+                    <td className="py-3.5">{a.checkOutTime || "-"}</td>
+                    <td className="py-3.5 text-zinc-500">{a.checkInDistanceMeters} m</td>
+                    <td className="py-3.5"><AttBadge status={a.status} late={a.lateMinutes} /></td>
+                    <td className="py-3.5 text-right">
+                      <button onClick={() => setAttSel(a)} className={linkBtn}>Detail <ChevronRight className="h-3 w-3" /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
+
+      <div className="flex flex-col gap-6 xl:col-span-4">
+        <CalendarWidget />
+        <div className={`${card} flex flex-col gap-4`}>
+          <div>
+            <h2 className="text-base font-bold text-zinc-900">Kedisiplinan</h2>
+            <p className="text-xs text-zinc-500">Ringkasan kehadiran tepat waktu</p>
+          </div>
+          <div className="flex flex-col gap-4 rounded-2xl border border-black/5 bg-white/90 p-5 shadow-sm">
+            <div>
+              <div className="mb-1.5 flex justify-between text-xs font-semibold text-zinc-700">
+                <span>Tepat Waktu</span>
+                <span>{pct}%</span>
+              </div>
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-100">
+                <div className="h-full rounded-full bg-zinc-900" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2 border-t border-zinc-100 pt-2 text-center">
+              {[["Total", attendances.length], ["Tepat", onTime], ["Telat", late]].map(([label, v]) => (
+                <div key={label as string}>
+                  <div className="text-base font-bold text-zinc-900">{String(v).padStart(2, "0")}</div>
+                  <div className="text-[10px] font-medium text-zinc-400">{label}</div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-xl border border-zinc-200 bg-white py-2.5 text-center text-xs font-bold text-zinc-900">
+              Alur: Karyawan <ArrowRight className="mx-1 inline h-3 w-3" /> GM <ArrowRight className="mx-1 inline h-3 w-3" /> HR
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {leaveSel && <LeaveModal key={leaveSel.id} sel={leaveSel} onClose={() => setLeaveSel(null)} onDone={reload} />}
+      {attSel && <AttModal key={attSel.id} sel={attSel} onClose={() => setAttSel(null)} onDone={reload} />}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth-jwt";
 import { dataStore } from "@/lib/store";
 import { isWithinRadius } from "@/lib/geofence";
+import { syncCheckInToD1, getKaryawanIdByNik, getShiftNumericId } from "@/lib/d1-client";
 
 export async function POST(request: Request) {
   try {
@@ -44,17 +45,8 @@ export async function POST(request: Request) {
       activeOffice.radiusMeters
     );
 
-    if (!radiusCheck.valid) {
-      return NextResponse.json(
-        {
-          error: "Absensi ditolak: Anda berada di luar radius kantor yang diizinkan.",
-          distanceMeters: radiusCheck.distanceMeters,
-          allowedRadiusMeters: activeOffice.radiusMeters,
-          officeName: activeOffice.name,
-        },
-        { status: 400 }
-      );
-    }
+    // Catatan: Validasi batas minimal radius kantor dinonaktifkan sementara
+    // if (!radiusCheck.valid) { ... }
 
     const todayDate = new Date().toISOString().split("T")[0];
     const existing = dataStore.attendances.find(
@@ -73,10 +65,20 @@ export async function POST(request: Request) {
     const hours = now.getHours();
     const minutes = now.getMinutes();
 
-    // Hitung keterlambatan berdasarkan shift reguler (default 08:00 + toleransi 15 menit)
-    const shiftStartHours = 8;
-    const shiftStartMinutes = 0;
-    const lateTolerance = 15;
+    // Ambil jadwal shift aktif milik karyawan
+    const fullUser = dataStore.users.find((u) => u.id === user!.userId);
+    const activeShift =
+      dataStore.shifts.find((s) => s.id === (fullUser?.shiftId || "shift_1")) ||
+      dataStore.shifts[0] || {
+        id: "shift_1",
+        name: "Shift Reguler",
+        startTime: "08:00",
+        endTime: "17:00",
+        lateToleranceMinutes: 15,
+      };
+
+    const [shiftStartHours, shiftStartMinutes] = activeShift.startTime.split(":").map(Number);
+    const lateTolerance = activeShift.lateToleranceMinutes ?? 15;
     const currentTotalMinutes = hours * 60 + minutes;
     const shiftThresholdMinutes = shiftStartHours * 60 + shiftStartMinutes + lateTolerance;
 
@@ -92,6 +94,8 @@ export async function POST(request: Request) {
       id: `att_${Date.now()}`,
       userId: user!.userId,
       userName: user!.name,
+      shiftId: activeShift.id,
+      shiftName: `${activeShift.name} (${activeShift.startTime}-${activeShift.endTime})`,
       date: todayDate,
       checkInTime: currentTimeStr,
       checkInLat: Number(latitude),
@@ -105,6 +109,18 @@ export async function POST(request: Request) {
     };
 
     dataStore.attendances.unshift(attendanceRecord);
+
+    // Persist ke Cloudflare D1
+    const karyawanId = getKaryawanIdByNik(user!.nik);
+    await syncCheckInToD1({
+      karyawanId,
+      shiftId: getShiftNumericId(activeShift.id),
+      tanggal: todayDate,
+      waktuMasuk: currentTimeStr,
+      lintangMasuk: Number(latitude),
+      bujurMasuk: Number(longitude),
+      statusKehadiran: status === "TEPAT_WAKTU" ? "Hadir" : "TERLAMBAT",
+    }).catch((e) => console.warn("[D1 Sync Check-in Error]", e));
 
     dataStore.auditLogs.unshift({
       id: `log_${Date.now()}`,

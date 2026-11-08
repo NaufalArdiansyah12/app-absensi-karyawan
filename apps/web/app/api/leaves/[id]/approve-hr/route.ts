@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth-jwt";
 import { dataStore } from "@/lib/store";
 import { transitionLeaveStatus, deductLeaveQuota } from "@/lib/leave-machine";
+import { syncLeaveHrApprovalToD1, getKaryawanIdByNik } from "@/lib/d1-client";
 
 export async function PATCH(
   request: Request,
@@ -48,6 +49,18 @@ export async function PATCH(
     leave.status = transition.nextStatus;
     leave.hrNote = note || "";
     leave.hrApprovedAt = Date.now();
+    dataStore.syncApprovedLeaveAttendances();
+
+    // Persist status approval HR ke Cloudflare D1
+    const karyawanId = getKaryawanIdByNik(employee.nik);
+    await syncLeaveHrApprovalToD1({
+      karyawanId,
+      tanggalMulai: leave.startDate,
+      approved: action === "APPROVE",
+      hrUserId: 3,
+      hrNote: note,
+      updatedLeaveQuota: employee.leaveQuota,
+    }).catch((e) => console.warn("[D1 Sync HR Approval Error]", e));
 
     dataStore.auditLogs.unshift({
       id: `log_${Date.now()}`,

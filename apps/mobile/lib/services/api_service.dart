@@ -29,6 +29,7 @@ class ApiService {
     final token = await getToken();
     return {
       'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
@@ -37,7 +38,10 @@ class ApiService {
   static Future<UserModel> login(String nikOrEmail, String password) async {
     final response = await http.post(
       Uri.parse(ApiConstants.login),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+      },
       body: jsonEncode({'nikOrEmail': nikOrEmail, 'password': password}),
     );
 
@@ -132,17 +136,23 @@ class ApiService {
     required String endDate,
     required int durationDays,
     required String reason,
+    String? docKey,
   }) async {
+    final payload = <String, dynamic>{
+      'type': type,
+      'startDate': startDate,
+      'endDate': endDate,
+      'durationDays': durationDays,
+      'reason': reason,
+    };
+    if (docKey != null) {
+      payload['docKey'] = docKey;
+    }
+
     final response = await http.post(
       Uri.parse(ApiConstants.leavesApply),
       headers: await _authHeaders(),
-      body: jsonEncode({
-        'type': type,
-        'startDate': startDate,
-        'endDate': endDate,
-        'durationDays': durationDays,
-        'reason': reason,
-      }),
+      body: jsonEncode(payload),
     );
 
     final data = jsonDecode(response.body);

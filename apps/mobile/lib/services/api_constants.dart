@@ -1,6 +1,5 @@
 class ApiConstants {
-  // Gunakan 10.0.2.2 untuk Android Emulator atau localhost untuk browser/desktop
-  static const String baseUrl = 'http://localhost:3000/api';
+  static const String baseUrl = 'https://centrally-resolved-molly.ngrok-free.app/api';
 
   static const String login = '$baseUrl/auth/login';
   static const String me = '$baseUrl/auth/me';

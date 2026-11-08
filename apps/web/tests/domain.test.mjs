@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { calculateHaversineDistance, isWithinRadius } from "../lib/geofence.ts";
 import { transitionLeaveStatus, deductLeaveQuota } from "../lib/leave-machine.ts";
 import { calculatePayroll } from "../lib/payroll.ts";
+import { dataStore } from "../lib/store.ts";
 
 test("Haversine formula validates office radius correctly", () => {
   // Kantor Nutrilife (contoh Jakarta: Monas -6.175392, 106.827153)
@@ -88,4 +89,29 @@ test("Payroll calculates accurate net salary with deductions and overtime", () =
   assert.equal(result.taxAndBpjs, 240000); // 4% of 6.000.000
   // Net = (6.000.000 + 1.000.000 + 104.046) - (30.000 + 272.727 + 240.000) = 7.104.046 - 542.727 = 6.561.319
   assert.equal(result.netSalary, 6561319);
+});
+
+test("HR-approved leave auto-records attendance with '-' times when shift starts", async () => {
+  await dataStore.init();
+  const pastDate = "2026-01-15";
+  dataStore.leaves.push({
+    id: "leave_test_auto",
+    userId: "usr_emp_1",
+    userName: "Ahmad Fauzi",
+    userDivision: "OPERASIONAL",
+    type: "IZIN_SAKIT",
+    startDate: pastDate,
+    endDate: pastDate,
+    durationDays: 1,
+    reason: "Demam",
+    status: "FINAL_DISETUJUI",
+    createdAt: Date.now(),
+  });
+
+  dataStore.syncApprovedLeaveAttendances();
+  const rec = dataStore.attendances.find((a) => a.userId === "usr_emp_1" && a.date === pastDate);
+  assert.ok(rec);
+  assert.equal(rec.status, "IZIN_SAKIT");
+  assert.equal(rec.checkInTime, "-");
+  assert.equal(rec.checkOutTime, "-");
 });

@@ -2,6 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRight, Lock, User } from "lucide-react";
+
+const DEMO_ROLES = [
+  { id: "SU001", title: "Super User", desc: "Master Data & Config" },
+  { id: "GM001", title: "General Manager", desc: "Approval Cuti Tahap 1" },
+  { id: "HR001", title: "HR Specialist", desc: "Approval Final & Evaluasi" },
+  { id: "FN001", title: "Finance Officer", desc: "Payroll & Slip Gaji" },
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,11 +39,9 @@ export default function LoginPage() {
         throw new Error(data.error || "Gagal masuk");
       }
 
-      // Simpan session di localStorage untuk client-side convenience
       localStorage.setItem("nutrilife_user", JSON.stringify(data.user));
       localStorage.setItem("nutrilife_token", data.token);
 
-      // Redirect berdasarkan role
       switch (data.user.role) {
         case "SUPER_USER":
           router.push("/super-user");
@@ -50,7 +56,6 @@ export default function LoginPage() {
           router.push("/finance");
           break;
         case "EMPLOYEE":
-          // Untuk web, direct ke employee portal preview
           router.push("/hr");
           break;
         default:
@@ -70,90 +75,85 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl ring-1 ring-slate-800">
-        <div className="mb-6 text-center">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-xl font-bold text-white shadow-lg">
-            NL
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_50%_0%,#F5F3F0_0%,#E8E5E1_100%)] p-6">
+      <div className="w-full max-w-md rounded-[28px] border border-white/80 bg-white/80 p-8 shadow-sm backdrop-blur">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-950 text-xl font-bold text-white shadow-md">
+            ✦
           </div>
-          <h2 className="mt-3 text-2xl font-bold text-slate-800">NUTRILIFE HRIS</h2>
-          <p className="text-xs text-slate-500">Sistem Kehadiran & Penggajian Terpadu</p>
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-zinc-900">Nutrilife HRIS</h1>
+          <p className="mt-1 text-xs text-zinc-500">
+            Sistem Manajemen Kehadiran, Cuti & Payroll Terpadu
+          </p>
         </div>
 
         {errorMsg && (
-          <div className="mb-4 rounded-lg bg-rose-50 p-3 text-xs font-medium text-rose-700 ring-1 ring-rose-200">
+          <div className="mb-4 rounded-2xl border border-rose-200/80 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-600">
             {errorMsg}
           </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600">NIK atau Email</label>
-            <input
-              type="text"
-              value={nikOrEmail}
-              onChange={(e) => setNikOrEmail(e.target.value)}
-              placeholder="Contoh: SU001 atau hr@nutrilife.com"
-              required
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-          </div>
+          <label className="block text-xs font-semibold text-zinc-600">
+            NIK atau Email
+            <div className="relative mt-1.5">
+              <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+              <input
+                type="text"
+                value={nikOrEmail}
+                onChange={(e) => setNikOrEmail(e.target.value)}
+                placeholder="Contoh: GM001 atau hr@nutrilife.com"
+                required
+                className="w-full rounded-full border border-black/5 bg-zinc-50 py-2.5 pl-11 pr-4 text-sm text-zinc-800 placeholder-zinc-400 transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              />
+            </div>
+          </label>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-600">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-          </div>
+          <label className="block text-xs font-semibold text-zinc-600">
+            Password
+            <div className="relative mt-1.5">
+              <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                className="w-full rounded-full border border-black/5 bg-zinc-50 py-2.5 pl-11 pr-4 text-sm text-zinc-800 placeholder-zinc-400 transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              />
+            </div>
+          </label>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-emerald-700 focus:outline-none disabled:opacity-50"
+            className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full bg-zinc-950 py-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
           >
-            {loading ? "Memverifikasi..." : "Masuk ke Sistem"}
+            <span>{loading ? "Memverifikasi..." : "Masuk ke Sistem"}</span>
+            {!loading && <ArrowRight className="h-3.5 w-3.5" />}
           </button>
         </form>
 
-        {/* Akses Cepat Demo / Testing */}
-        <div className="mt-6 border-t border-slate-200 pt-5">
-          <p className="text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Akses Cepat Pengujian Role (Demo)
+        <div className="mt-6 border-t border-zinc-200/70 pt-5">
+          <p className="text-center text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+            Akses Cepat Demo Role
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-            <button
-              onClick={() => quickLogin("SU001", "admin123")}
-              className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-left hover:bg-slate-100"
-            >
-              <div className="font-bold text-slate-800">Super User</div>
-              <div className="text-[10px] text-slate-500">Master Data & Config</div>
-            </button>
-            <button
-              onClick={() => quickLogin("GM001", "admin123")}
-              className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-left hover:bg-slate-100"
-            >
-              <div className="font-bold text-slate-800">General Manager</div>
-              <div className="text-[10px] text-slate-500">Approval Cuti Tahap 1</div>
-            </button>
-            <button
-              onClick={() => quickLogin("HR001", "admin123")}
-              className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-left hover:bg-slate-100"
-            >
-              <div className="font-bold text-slate-800">HR Specialist</div>
-              <div className="text-[10px] text-slate-500">Verifikasi Foto/GPS & Final Cuti</div>
-            </button>
-            <button
-              onClick={() => quickLogin("FN001", "admin123")}
-              className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-left hover:bg-slate-100"
-            >
-              <div className="font-bold text-slate-800">Finance Officer</div>
-              <div className="text-[10px] text-slate-500">Hitung & Terbitkan Payroll</div>
-            </button>
+          <div className="mt-3 grid grid-cols-2 gap-2.5 text-xs">
+            {DEMO_ROLES.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                disabled={loading}
+                onClick={() => quickLogin(r.id, "admin123")}
+                className="group flex flex-col rounded-2xl border border-black/5 bg-white/90 p-3 text-left shadow-sm transition-all hover:border-zinc-950 hover:bg-zinc-950 disabled:opacity-50"
+              >
+                <div className="flex items-center justify-between font-bold text-zinc-900 group-hover:text-white">
+                  <span>{r.title}</span>
+                  <span className="text-[10px] font-medium text-zinc-400 group-hover:text-zinc-300">{r.id}</span>
+                </div>
+                <div className="mt-0.5 text-[11px] text-zinc-500 group-hover:text-zinc-300">{r.desc}</div>
+              </button>
+            ))}
           </div>
         </div>
       </div>

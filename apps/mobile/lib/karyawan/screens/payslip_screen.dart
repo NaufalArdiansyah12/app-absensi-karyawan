@@ -33,31 +33,30 @@ class _PayslipScreenState extends State<PayslipScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.primary,
       appBar: AppBar(
         title: const Text(
           'Slip Gaji Pribadi',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: const Color(0xFF1E293B),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _slips.isEmpty
-              ? const Center(
-                  child: Text(
-                    'Belum ada slip gaji yang diterbitkan Finance.',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+      body: AppTheme.curvedBody(
+        _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _slips.isEmpty
+                ? const Center(
+                    child: Text(
+                      'Belum ada slip gaji yang diterbitkan Finance.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                    itemCount: _slips.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) => PayslipCard(slip: _slips[index]),
                   ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _slips.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) => PayslipCard(slip: _slips[index]),
-                ),
+      ),
     );
   }
 }

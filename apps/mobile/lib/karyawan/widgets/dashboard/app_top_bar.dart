@@ -18,7 +18,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppTheme.background,
+      color: AppTheme.primary,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: SafeArea(
         bottom: false,
@@ -34,7 +34,10 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
                   decoration: BoxDecoration(
                     color: AppTheme.primarySubtle,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.border, width: 1.5),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.4),
+                      width: 1.5,
+                    ),
                   ),
                   child: Center(
                     child: Text(
@@ -64,26 +67,41 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
             ),
 
             // Center: Brand Logo
-            RichText(
-              text: const TextSpan(
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  fontStyle: FontStyle.italic,
-                  color: AppTheme.textPrimary,
-                  letterSpacing: -0.5,
-                ),
-                children: [
-                  TextSpan(text: 'Nutrilife'),
-                  TextSpan(
-                    text: '!',
-                    style: TextStyle(
-                      color: AppTheme.primary,
-                      fontWeight: FontWeight.w900,
-                    ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    width: 26,
+                    height: 26,
+                    fit: BoxFit.contain,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                RichText(
+                  text: const TextSpan(
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.white,
+                      letterSpacing: -0.5,
+                    ),
+                    children: [
+                      TextSpan(text: 'Nutrilife'),
+                      TextSpan(
+                        text: '!',
+                        style: TextStyle(
+                          color: Color(0xFFA3E635),
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
 
             // Right: Notification Bell Button with Indicator Badge
@@ -93,10 +111,9 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
               child: Container(
                 width: 38,
                 height: 38,
-                decoration: BoxDecoration(
-                  color: Colors.white,
+                decoration: const BoxDecoration(
+                  color: AppTheme.primarySubtle,
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppTheme.border),
                 ),
                 child: Stack(
                   alignment: Alignment.center,

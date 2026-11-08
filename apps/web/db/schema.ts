@@ -55,6 +55,8 @@ export const shiftKerja = sqliteTable("shift_kerja", {
   namaShift: text("nama_shift").notNull(),
   jamMasuk: text("jam_masuk").notNull(), // Format HH:MM:SS
   jamPulang: text("jam_pulang").notNull(),
+  jamIstirahatMulai: text("jam_istirahat_mulai").default("12:00:00"),
+  jamIstirahatSelesai: text("jam_istirahat_selesai").default("13:00:00"),
   dibuatPada: text("dibuat_pada").default(sql`(datetime('now'))`),
   diperbaruiPada: text("diperbarui_pada").default(sql`(datetime('now'))`),
 });

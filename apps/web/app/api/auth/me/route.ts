@@ -12,6 +12,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Pengguna tidak ditemukan" }, { status: 404 });
   }
 
+  const shift =
+    dataStore.shifts.find((s) => s.id === (fullUser.shiftId || "shift_1")) ||
+    dataStore.shifts[0];
+
   return NextResponse.json({
     user: {
       id: fullUser.id,
@@ -22,6 +26,8 @@ export async function GET(request: Request) {
       division: fullUser.division,
       jobPosition: fullUser.jobPosition,
       leaveQuota: fullUser.leaveQuota,
+      shiftId: shift?.id || "shift_1",
+      shift,
     },
   });
 }

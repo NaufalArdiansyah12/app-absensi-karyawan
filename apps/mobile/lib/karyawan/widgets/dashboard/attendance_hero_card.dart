@@ -27,25 +27,80 @@ class AttendanceHeroCard extends StatefulWidget {
 }
 
 class _AttendanceHeroCardState extends State<AttendanceHeroCard> {
-  late Timer _timer;
-  int _secondsWorked = 5 * 3600 + 3 * 60 + 24;
+  Timer? _timer;
+  int _secondsWorked = 0;
+  bool _isRunning = false;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() {
-          _secondsWorked++;
-        });
-      }
-    });
+    _startTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant AttendanceHeroCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.checkInTime != widget.checkInTime ||
+        oldWidget.checkOutTime != widget.checkOutTime) {
+      _startTimer();
+    }
   }
 
   @override
   void dispose() {
-    _timer.cancel();
+    _timer?.cancel();
     super.dispose();
+  }
+
+  DateTime? _parseTodayTime(String? timeStr) {
+    if (timeStr == null || timeStr.trim().isEmpty || timeStr == '--:--') {
+      return null;
+    }
+    try {
+      final parts = timeStr.trim().split(':');
+      if (parts.length >= 2) {
+        final now = DateTime.now();
+        final h = int.parse(parts[0]);
+        final m = int.parse(parts[1]);
+        final s = parts.length >= 3 ? int.parse(parts[2]) : 0;
+        return DateTime(now.year, now.month, now.day, h, m, s);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  void _calculateSeconds() {
+    final inTime = _parseTodayTime(widget.checkInTime);
+    if (inTime == null) {
+      _secondsWorked = 0;
+      _isRunning = false;
+      return;
+    }
+
+    final outTime = _parseTodayTime(widget.checkOutTime);
+    if (outTime != null) {
+      final diff = outTime.difference(inTime).inSeconds;
+      _secondsWorked = diff > 0 ? diff : 0;
+      _isRunning = false;
+    } else {
+      final now = DateTime.now();
+      final diff = now.difference(inTime).inSeconds;
+      _secondsWorked = diff > 0 ? diff : 0;
+      _isRunning = true;
+    }
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _calculateSeconds();
+    if (_isRunning) {
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) return;
+        setState(() {
+          _calculateSeconds();
+        });
+      });
+    }
   }
 
   String _formatDuration(int totalSeconds) {
@@ -55,8 +110,22 @@ class _AttendanceHeroCardState extends State<AttendanceHeroCard> {
     return '$h:$m:$s';
   }
 
+  String _formatTimeDisplay(String? raw) {
+    if (raw == null || raw.trim().isEmpty || raw == '--:--') {
+      return '--:--';
+    }
+    final parts = raw.split(':');
+    if (parts.length >= 2) {
+      return '${parts[0].padLeft(2, '0')}:${parts[1].padLeft(2, '0')}';
+    }
+    return raw;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final hasCheckedIn = widget.checkInTime != null && widget.checkInTime!.isNotEmpty;
+    final hasCheckedOut = widget.checkOutTime != null && widget.checkOutTime!.isNotEmpty;
+
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.surface,
@@ -98,36 +167,11 @@ class _AttendanceHeroCardState extends State<AttendanceHeroCard> {
                 // Triad Metrics
                 Row(
                   children: [
-                    _buildMetricCol('Presence', '${widget.presenceDays} Days'),
+                    _buildMetricCol('Kehadiran', '${widget.presenceDays} Hari'),
                     Container(height: 28, width: 1, color: AppTheme.border),
-                    _buildMetricCol('Sick', '${widget.sickCount} Times'),
+                    _buildMetricCol('Izin Sakit', '${widget.sickCount} Kali'),
                     Container(height: 28, width: 1, color: AppTheme.border),
-                    _buildMetricCol('Leave Quota', '${widget.leaveQuota} Days'),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                // Pagination Indicator Pill
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 16,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Container(
-                      width: 5,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: AppTheme.borderSubtle,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
+                    _buildMetricCol('Sisa Cuti', '${widget.leaveQuota} Hari'),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -136,9 +180,19 @@ class _AttendanceHeroCardState extends State<AttendanceHeroCard> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      'Duration',
-                      style: TextStyle(
+                    if (_isRunning)
+                      Container(
+                        width: 7,
+                        height: 7,
+                        margin: const EdgeInsets.only(right: 6),
+                        decoration: const BoxDecoration(
+                          color: AppTheme.secondary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    Text(
+                      _isRunning ? 'Jam Kerja (Berjalan)' : 'Durasi Kerja',
+                      style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                         color: AppTheme.textSecondary,
@@ -151,16 +205,20 @@ class _AttendanceHeroCardState extends State<AttendanceHeroCard> {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.surfaceAlt,
+                        color: _isRunning ? AppTheme.primarySubtle : AppTheme.surfaceAlt,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppTheme.borderSubtle),
+                        border: Border.all(
+                          color: _isRunning
+                              ? AppTheme.primary.withValues(alpha: 0.3)
+                              : AppTheme.borderSubtle,
+                        ),
                       ),
                       child: Text(
                         _formatDuration(_secondsWorked),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
+                          color: _isRunning ? AppTheme.primary : AppTheme.textPrimary,
                           fontFamily: 'monospace',
                           letterSpacing: 0.5,
                         ),
@@ -181,9 +239,15 @@ class _AttendanceHeroCardState extends State<AttendanceHeroCard> {
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppTheme.surfaceAlt,
+                            color: hasCheckedIn
+                                ? AppTheme.primarySubtle.withValues(alpha: 0.4)
+                                : AppTheme.surfaceAlt,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppTheme.border),
+                            border: Border.all(
+                              color: hasCheckedIn
+                                  ? AppTheme.secondary.withValues(alpha: 0.4)
+                                  : AppTheme.border,
+                            ),
                           ),
                           child: Row(
                             children: [
@@ -204,28 +268,32 @@ class _AttendanceHeroCardState extends State<AttendanceHeroCard> {
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    widget.checkInTime ?? '08:00',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppTheme.textPrimary,
-                                      fontFamily: 'monospace',
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _formatTimeDisplay(widget.checkInTime),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                        color: hasCheckedIn
+                                            ? AppTheme.primary
+                                            : AppTheme.textMuted,
+                                        fontFamily: 'monospace',
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  const Text(
-                                    'Checkin',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppTheme.textSecondary,
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      'Masuk',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppTheme.textSecondary,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ],
                           ),
@@ -242,9 +310,15 @@ class _AttendanceHeroCardState extends State<AttendanceHeroCard> {
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppTheme.surfaceAlt,
+                            color: hasCheckedOut
+                                ? AppTheme.errorSubtle.withValues(alpha: 0.4)
+                                : AppTheme.surfaceAlt,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppTheme.border),
+                            border: Border.all(
+                              color: hasCheckedOut
+                                  ? AppTheme.error.withValues(alpha: 0.4)
+                                  : AppTheme.border,
+                            ),
                           ),
                           child: Row(
                             children: [
@@ -265,30 +339,32 @@ class _AttendanceHeroCardState extends State<AttendanceHeroCard> {
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    widget.checkOutTime ?? '--:--',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
-                                      color: widget.checkOutTime != null
-                                          ? AppTheme.error
-                                          : AppTheme.textMuted,
-                                      fontFamily: 'monospace',
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _formatTimeDisplay(widget.checkOutTime),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                        color: hasCheckedOut
+                                            ? AppTheme.error
+                                            : AppTheme.textMuted,
+                                        fontFamily: 'monospace',
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  const Text(
-                                    'Checkout',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppTheme.textSecondary,
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      'Pulang',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppTheme.textSecondary,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ],
                           ),

@@ -4,16 +4,82 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Users,
-  MapPin,
   CalendarCheck,
   CheckSquare,
   DollarSign,
   ShieldAlert,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
   Building2,
+  LayoutDashboard,
+  Users,
   Clock,
+  Gauge,
+  FileText,
+  CalendarDays,
+  ClipboardCheck,
+  AlertTriangle,
+  UserCheck,
+  Award,
+  TrendingUp,
+  Calculator,
+  Wallet,
+  Gift,
+  MinusCircle,
+  Timer,
+  Sparkles,
+  ShieldCheck,
+  Percent,
+  Receipt,
 } from "lucide-react";
+import Navbar from "@/components/Navbar";
+
+const gmNav = [
+  { title: "Dashboard", href: "/gm", icon: LayoutDashboard },
+  { title: "Kondisi Perusahaan", href: "/gm/perusahaan", icon: Building2 },
+  { title: "Monitoring Karyawan", href: "/gm/karyawan", icon: Users },
+  { title: "Monitoring Absensi", href: "/gm/absensi", icon: Clock },
+  { title: "Monitoring Kedisiplinan", href: "/gm/kedisiplinan", icon: Gauge },
+  { title: "Approval Cuti", href: "/gm/cuti", icon: CalendarDays },
+  { title: "Approval Izin", href: "/gm/izin", icon: ClipboardCheck },
+  { title: "Laporan", href: "/gm/laporan", icon: FileText },
+];
+
+const hrNav = [
+  { title: "Dashboard", href: "/hr", icon: LayoutDashboard },
+  { title: "Monitoring Absensi", href: "/hr/absensi", icon: Clock },
+  { title: "Monitoring Keterlambatan", href: "/hr/keterlambatan", icon: AlertTriangle },
+  { title: "Monitoring Izin", href: "/hr/izin", icon: ClipboardCheck },
+  { title: "Monitoring Cuti", href: "/hr/cuti", icon: CalendarDays },
+  { title: "Monitoring Kedisiplinan", href: "/hr/kedisiplinan", icon: Gauge },
+  { title: "Approval Akhir Cuti/Izin", href: "/hr/approval", icon: CheckSquare },
+  { title: "Validasi Data Karyawan", href: "/hr/karyawan", icon: UserCheck },
+  { title: "Evaluasi Kedisiplinan", href: "/hr/evaluasi-kedisiplinan", icon: Award },
+  { title: "Evaluasi Kinerja", href: "/hr/evaluasi-kinerja", icon: TrendingUp },
+  { title: "Laporan HR", href: "/hr/laporan", icon: FileText },
+];
+
+const financeNav = [
+  { title: "Dashboard", href: "/finance", icon: LayoutDashboard },
+  { title: "Perhitungan Payroll", href: "/finance/perhitungan", icon: Calculator },
+  { title: "Gaji Pokok", href: "/finance/gaji-pokok", icon: Wallet },
+  { title: "Tunjangan", href: "/finance/tunjangan", icon: Gift },
+  { title: "Potongan", href: "/finance/potongan", icon: MinusCircle },
+  { title: "Lembur", href: "/finance/lembur", icon: Timer },
+  { title: "Bonus", href: "/finance/bonus", icon: Sparkles },
+  { title: "BPJS", href: "/finance/bpjs", icon: ShieldCheck },
+  { title: "Pajak", href: "/finance/pajak", icon: Percent },
+  { title: "Slip Gaji", href: "/finance/slip-gaji", icon: Receipt },
+  { title: "Rekap Payroll", href: "/finance/rekap", icon: FileText },
+];
+
+const otherNav = [
+  { title: "GM", href: "/gm", icon: CheckSquare },
+  { title: "HR", href: "/hr", icon: CalendarCheck },
+  { title: "Finance", href: "/finance", icon: DollarSign },
+  { title: "Super User", href: "/super-user", icon: ShieldAlert },
+];
 
 export default function DashboardLayout({
   children,
@@ -23,6 +89,17 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [open, setOpen] = useState(false);
+  const navItems = pathname.startsWith("/gm")
+    ? gmNav
+    : pathname.startsWith("/hr")
+    ? hrNav
+    : pathname.startsWith("/finance")
+    ? financeNav
+    : otherNav;
+  const navBtn = `flex h-11 items-center gap-3 rounded-2xl transition-all ${
+    open ? "px-3" : "w-11 justify-center self-center"
+  }`;
 
   useEffect(() => {
     const raw = localStorage.getItem("nutrilife_user");
@@ -42,106 +119,67 @@ export default function DashboardLayout({
     router.replace("/login");
   };
 
-  const navItems = [
-    {
-      title: "Super User (Master)",
-      href: "/super-user",
-      icon: ShieldAlert,
-      roleBadge: "SUPER_USER",
-    },
-    {
-      title: "GM (Approval Tahap 1)",
-      href: "/gm",
-      icon: CheckSquare,
-      roleBadge: "GM",
-    },
-    {
-      title: "HR (Verifikasi & Final Cuti)",
-      href: "/hr",
-      icon: CalendarCheck,
-      roleBadge: "HR",
-    },
-    {
-      title: "Finance (Kalkulasi Payroll)",
-      href: "/finance",
-      icon: DollarSign,
-      roleBadge: "FINANCE",
-    },
-  ];
-
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 w-64 border-r border-slate-200 bg-white">
-        <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-6">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 font-bold text-white shadow-sm">
-            NL
-          </div>
-          <div>
-            <div className="text-sm font-bold text-slate-800">NUTRILIFE HRIS</div>
-            <div className="text-[10px] text-slate-500">v2.0 Monorepo Cloudflare</div>
-          </div>
-        </div>
+    <div className="min-h-screen w-full">
+      <div className="flex min-h-screen w-full flex-col gap-6 bg-[radial-gradient(circle_at_50%_0%,#F5F3F0_0%,#E8E5E1_100%)] p-6 md:p-8">
+        <Navbar user={currentUser} />
 
-        <div className="p-4">
-          <div className="mb-4 rounded-xl bg-slate-100 p-3">
-            <div className="text-xs font-semibold text-slate-800">{currentUser?.name || "Memuat..."}</div>
-            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-500">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-              <span>{currentUser?.role || "GUEST"} • {currentUser?.division || "DIV"}</span>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <div className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-              Navigasi Modul RBAC
-            </div>
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium transition ${
-                    isActive
-                      ? "bg-emerald-50 text-emerald-700 font-semibold"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  }`}
-                >
-                  <Icon className={`h-4 w-4 ${isActive ? "text-emerald-600" : "text-slate-400"}`} />
-                  <span className="flex-1">{item.title}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="absolute inset-x-0 bottom-0 border-t border-slate-200 p-4">
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white py-2 text-xs font-medium text-rose-600 shadow-sm hover:bg-rose-50"
+        <div className="flex flex-1 items-start gap-6">
+          <aside
+            className={`sticky top-8 flex h-[calc(100vh-8rem)] min-h-[500px] shrink-0 flex-col justify-between rounded-[28px] border border-white/80 bg-white/80 px-2 py-4 shadow-sm backdrop-blur transition-[width] duration-200 ${
+              open ? "w-56" : "w-16"
+            }`}
           >
-            <LogOut className="h-4 w-4" />
-            <span>Keluar Sistem</span>
-          </button>
+            <nav className="flex flex-col gap-1.5 overflow-y-auto">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const active =
+                  item.href === "/gm" || item.href === "/hr" || item.href === "/finance"
+                    ? pathname === item.href
+                    : pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={item.title}
+                    aria-label={item.title}
+                    className={`${navBtn} ${
+                      active
+                        ? "bg-zinc-950 text-white shadow-md"
+                        : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
+                    }`}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    {open && <span className="truncate text-sm font-semibold">{item.title}</span>}
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => setOpen(!open)}
+                title={open ? "Perkecil sidebar" : "Perbesar sidebar"}
+                aria-label={open ? "Perkecil sidebar" : "Perbesar sidebar"}
+                aria-expanded={open}
+                className={`${navBtn} text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900`}
+              >
+                {open ? <PanelLeftClose className="h-5 w-5 shrink-0" /> : <PanelLeftOpen className="h-5 w-5 shrink-0" />}
+                {open && <span className="truncate text-sm font-semibold">Perkecil</span>}
+              </button>
+              <button
+                onClick={handleLogout}
+                title="Keluar"
+                aria-label="Keluar"
+                className={`${navBtn} text-zinc-400 hover:bg-zinc-100 hover:text-rose-600`}
+              >
+                <LogOut className="h-5 w-5 shrink-0" />
+                {open && <span className="truncate text-sm font-semibold">Keluar</span>}
+              </button>
+            </div>
+          </aside>
+
+          <main className="min-w-0 flex-1">{children}</main>
         </div>
-      </aside>
-
-      {/* Main Content Viewport */}
-      <div className="flex-1 pl-64">
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 px-8 backdrop-blur-md">
-          <div className="text-sm font-semibold text-slate-700">
-            Nutrilife Enterprise HR & Payroll Management
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-medium text-emerald-800">
-              Edge Runtime (D1 + R2)
-            </span>
-          </div>
-        </header>
-
-        <main className="p-8">{children}</main>
       </div>
     </div>
   );

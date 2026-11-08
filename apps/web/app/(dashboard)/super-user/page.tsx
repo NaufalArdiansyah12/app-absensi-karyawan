@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Users, MapPin, Clock, ShieldAlert, Plus, Check } from "lucide-react";
+import { Select } from "@/components/gm-shared";
 
 export default function SuperUserPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -291,17 +292,20 @@ export default function SuperUserPage() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="font-semibold text-slate-600">Peran (Role)</label>
-                  <select
-                    value={newRole}
-                    onChange={(e) => setNewRole(e.target.value)}
-                    className="mt-1 w-full rounded border border-slate-300 p-2"
-                  >
-                    <option value="EMPLOYEE">EMPLOYEE</option>
-                    <option value="GM">GM</option>
-                    <option value="HR">HR</option>
-                    <option value="FINANCE">FINANCE</option>
-                    <option value="SUPER_USER">SUPER_USER</option>
-                  </select>
+                  <div className="mt-1">
+                    <Select
+                      ariaLabel="Peran (Role)"
+                      value={newRole}
+                      onChange={setNewRole}
+                      options={[
+                        { value: "EMPLOYEE", label: "EMPLOYEE" },
+                        { value: "GM", label: "GM" },
+                        { value: "HR", label: "HR" },
+                        { value: "FINANCE", label: "FINANCE" },
+                        { value: "SUPER_USER", label: "SUPER_USER" },
+                      ]}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="font-semibold text-slate-600">Divisi</label>

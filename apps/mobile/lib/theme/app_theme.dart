@@ -54,11 +54,27 @@ class AppTheme {
         error: error,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: surface,
-        foregroundColor: textPrimary,
+        backgroundColor: primary,
+        foregroundColor: onPrimary,
+        centerTitle: true,
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
+    );
+  }
+
+  // ponytail: simple Container wrapper for curved top sheet background; extract to custom Scaffold only if header animations are needed
+  static Widget curvedBody(Widget child) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      margin: const EdgeInsets.only(top: 12),
+      clipBehavior: Clip.antiAlias,
+      decoration: const BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(36)),
+      ),
+      child: child,
     );
   }
 }

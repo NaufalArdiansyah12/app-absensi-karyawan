@@ -1,20 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
 
-class DayItem {
-  final String dayName;
-  final int dateNumber;
-  final bool isSunday;
-  final List<Color> dots;
-
-  const DayItem({
-    required this.dayName,
-    required this.dateNumber,
-    this.isSunday = false,
-    this.dots = const [],
-  });
-}
-
 class WeeklyStripCalendar extends StatelessWidget {
   final int selectedDayIndex;
   final ValueChanged<int> onSelectDay;
@@ -25,53 +11,38 @@ class WeeklyStripCalendar extends StatelessWidget {
     required this.onSelectDay,
   });
 
-  static const List<DayItem> days = [
-    DayItem(
-      dayName: 'Mon',
-      dateNumber: 26,
-      dots: [Color(0xFFF87171), Color(0xFFFBBF24)],
-    ),
-    DayItem(
-      dayName: 'Tue',
-      dateNumber: 27,
-      dots: [Color(0xFFFBBF24), Color(0xFF38BDF8)],
-    ),
-    DayItem(
-      dayName: 'Wed',
-      dateNumber: 28,
-      dots: [Colors.white, Color(0xFFA7F3D0)],
-    ),
-    DayItem(
-      dayName: 'Thu',
-      dateNumber: 29,
-      dots: [Color(0xFFF87171), Color(0xFFFBBF24)],
-    ),
-    DayItem(
-      dayName: 'Fri',
-      dateNumber: 30,
-      dots: [Color(0xFFF87171)],
-    ),
-    DayItem(
-      dayName: 'Sat',
-      dateNumber: 31,
-      dots: [Color(0xFFFBBF24)],
-    ),
-    DayItem(
-      dayName: 'Sun',
-      dateNumber: 1,
-      isSunday: true,
-      dots: [],
-    ),
-  ];
+  List<Map<String, dynamic>> _getWeekDays() {
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: (now.weekday - 1)));
+    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    return List.generate(7, (i) {
+      final date = monday.add(Duration(days: i));
+      final isSunday = i == 6;
+      final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
+
+      return {
+        'dayName': names[i],
+        'dateNumber': date.day,
+        'date': date,
+        'isSunday': isSunday,
+        'isToday': isToday,
+      };
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final days = _getWeekDays();
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: List.generate(days.length, (index) {
           final item = days[index];
           final isSelected = index == selectedDayIndex;
+          final isSunday = item['isSunday'] as bool;
+          final isToday = item['isToday'] as bool;
 
           return Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -85,16 +56,19 @@ class WeeklyStripCalendar extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isSelected
                       ? AppTheme.primary
-                      : item.isSunday
+                      : isSunday
                           ? const Color(0xFFFEE2E2)
                           : AppTheme.surface,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: isSelected
                         ? AppTheme.primary
-                        : item.isSunday
+                        : isSunday
                             ? const Color(0xFFFECDD3)
-                            : AppTheme.border,
+                            : isToday
+                                ? AppTheme.secondary
+                                : AppTheme.border,
+                    width: isToday && !isSelected ? 1.5 : 1,
                   ),
                   boxShadow: isSelected
                       ? [
@@ -110,26 +84,26 @@ class WeeklyStripCalendar extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      item.dayName,
+                      item['dayName'] as String,
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color: isSelected
                             ? Colors.white.withValues(alpha: 0.9)
-                            : item.isSunday
+                            : isSunday
                                 ? const Color(0xFFDC2626)
                                 : AppTheme.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${item.dateNumber}',
+                      '${item['dateNumber']}',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                         color: isSelected
                             ? Colors.white
-                            : item.isSunday
+                            : isSunday
                                 ? const Color(0xFFDC2626)
                                 : AppTheme.textPrimary,
                       ),
@@ -137,17 +111,20 @@ class WeeklyStripCalendar extends StatelessWidget {
                     const SizedBox(height: 6),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: item.dots.map((dotColor) {
-                        return Container(
+                      children: [
+                        Container(
                           width: 4,
                           height: 4,
-                          margin: const EdgeInsets.symmetric(horizontal: 1),
                           decoration: BoxDecoration(
-                            color: isSelected ? Colors.white : dotColor,
+                            color: isSelected
+                                ? Colors.white
+                                : isToday
+                                    ? AppTheme.secondary
+                                    : const Color(0xFFFBBF24),
                             shape: BoxShape.circle,
                           ),
-                        );
-                      }).toList(),
+                        ),
+                      ],
                     ),
                   ],
                 ),

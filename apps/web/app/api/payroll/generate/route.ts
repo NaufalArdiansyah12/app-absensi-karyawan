@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     for (const emp of employees) {
       // Hitung kehadiran karyawan di bulan bersangkutan
       const empAttendances = dataStore.attendances.filter((a) => {
-        if (a.userId !== emp.id) return false;
+        if (a.userId !== emp.id || (a.status !== "TEPAT_WAKTU" && a.status !== "TERLAMBAT")) return false;
         const [aYear, aMonth] = a.date.split("-").map(Number);
         return aYear === year && aMonth === month;
       });
@@ -37,14 +37,19 @@ export async function POST(request: Request) {
       const workingDays = 22;
       const totalAbsentDays = Math.max(0, workingDays - (presentDays + approvedLeaves));
 
+      const allowanceVal = emp.allowance ?? 750000;
+      const bonusVal = emp.bonus ?? 0;
       const calc = calculatePayroll({
         baseSalary: emp.baseSalary,
-        allowance: 750000, // Tunjangan operasional tetap
+        allowance: allowanceVal,
         totalLateMinutes,
         totalAbsentDays,
         totalOvertimeMinutes,
         workingDaysInMonth: workingDays,
       });
+      const bpjsDeduction = Math.round(emp.baseSalary * 0.02);
+      const taxDeduction = calc.taxAndBpjs - bpjsDeduction;
+      const netSalary = calc.netSalary + bonusVal;
 
       // Cek apakah sudah pernah digenerate
       let existingPayroll = dataStore.payrolls.find(
@@ -55,11 +60,14 @@ export async function POST(request: Request) {
         Object.assign(existingPayroll, {
           baseSalary: calc.baseSalary,
           allowance: calc.allowance,
+          bonus: bonusVal,
           lateDeduction: calc.lateDeduction,
           absentDeduction: calc.absentDeduction,
           overtimePay: calc.overtimePay,
+          bpjsDeduction,
+          taxDeduction,
           taxAndBpjs: calc.taxAndBpjs,
-          netSalary: calc.netSalary,
+          netSalary,
           generatedAt: Date.now(),
         });
         generatedList.push(existingPayroll);
@@ -73,6 +81,10 @@ export async function POST(request: Request) {
           month,
           year,
           ...calc,
+          bonus: bonusVal,
+          bpjsDeduction,
+          taxDeduction,
+          netSalary,
           status: "PUBLISHED" as const, // auto-publish for ease of use
           generatedAt: Date.now(),
         };

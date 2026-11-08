@@ -13,13 +13,47 @@ class ScheduleScreen extends StatefulWidget {
 }
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
-  int _selectedDay = 3; // default Thursday
+  late int _selectedDay;
   int _activeCategory = 0; // 0: Scheduled, 1: Temporary, 2: Automatic
+  late DateTime _monday;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _monday = now.subtract(Duration(days: (now.weekday - 1)));
+    _selectedDay = now.weekday - 1;
+  }
+
+  DateTime get _selectedDate => _monday.add(Duration(days: _selectedDay));
+
+  String _formatDayName(int weekday) {
+    const days = [
+      'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'
+    ];
+    return days[(weekday - 1) % 7];
+  }
+
+  String _formatMonthYear(DateTime dt) {
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return '${months[dt.month - 1]} ${dt.year}';
+  }
+
+  bool get _isSelectedToday {
+    final now = DateTime.now();
+    final dt = _selectedDate;
+    return now.year == dt.year && now.month == dt.month && now.day == dt.day;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final curDate = _selectedDate;
+
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.primary,
       appBar: AppBar(
         title: const Text(
           'Jadwal & Shift Kerja',
@@ -32,43 +66,44 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               )
             : null,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Big Active Date Header with Today Chip
+      body: AppTheme.curvedBody(
+        SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+            // Active Date Header with Today Chip
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text(
-                      '29',
-                      style: TextStyle(
+                      '${curDate.day}',
+                      style: const TextStyle(
                         fontSize: 36,
                         fontWeight: FontWeight.w900,
                         color: AppTheme.textPrimary,
                         letterSpacing: -1,
                       ),
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Thursday',
-                          style: TextStyle(
+                          _formatDayName(curDate.weekday),
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: AppTheme.textPrimary,
                           ),
                         ),
                         Text(
-                          'October 2026',
-                          style: TextStyle(
+                          _formatMonthYear(curDate),
+                          style: const TextStyle(
                             fontSize: 11,
                             color: AppTheme.textSecondary,
                             fontWeight: FontWeight.w500,
@@ -78,24 +113,25 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     ),
                   ],
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.secondarySubtle,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppTheme.secondary.withValues(alpha: 0.3),
+                if (_isSelectedToday)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.secondarySubtle,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppTheme.secondary.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: const Text(
+                      'Hari Ini',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.primary,
+                      ),
                     ),
                   ),
-                  child: const Text(
-                    'Today',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.primary,
-                    ),
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 14),
@@ -116,9 +152,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               ),
               child: Row(
                 children: [
-                  _buildSubTab(0, 'Scheduled'),
-                  _buildSubTab(1, 'Temporary'),
-                  _buildSubTab(2, 'Automatic'),
+                  _buildSubTab(0, 'Terjadwal'),
+                  _buildSubTab(1, 'Sementara'),
+                  _buildSubTab(2, 'Otomatis'),
                 ],
               ),
             ),
@@ -129,7 +165,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Time',
+                  'Waktu',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -139,7 +175,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 Row(
                   children: [
                     const Text(
-                      'Detail',
+                      'Detail Shift',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -160,9 +196,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
             // Shift Timeline View
             const ShiftTimelineView(),
-            const SizedBox(height: 32),
+            const SizedBox(height: 120),
           ],
         ),
+      ),
       ),
     );
   }

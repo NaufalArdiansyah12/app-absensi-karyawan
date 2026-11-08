@@ -43,17 +43,18 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.primary,
       appBar: AppBar(
         title: const Text(
           'Profil Karyawan',
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          children: [
+      body: AppTheme.curvedBody(
+        SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+          child: Column(
+            children: [
             // User Profile Card
             Container(
               width: double.infinity,
@@ -212,9 +213,10 @@ class ProfileScreen extends StatelessWidget {
                 onPressed: () => _handleLogout(context),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 120),
           ],
         ),
+      ),
       ),
     );
   }

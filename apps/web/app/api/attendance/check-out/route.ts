@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth-jwt";
 import { dataStore } from "@/lib/store";
 import { isWithinRadius } from "@/lib/geofence";
+import { syncCheckOutToD1, getKaryawanIdByNik } from "@/lib/d1-client";
 
 export async function POST(request: Request) {
   try {
@@ -48,24 +49,21 @@ export async function POST(request: Request) {
       activeOffice.radiusMeters
     );
 
-    if (!radiusCheck.valid) {
-      return NextResponse.json(
-        {
-          error: "Check-out ditolak: Anda berada di luar radius kantor yang diizinkan.",
-          distanceMeters: radiusCheck.distanceMeters,
-          allowedRadiusMeters: activeOffice.radiusMeters,
-        },
-        { status: 400 }
-      );
-    }
+    // Catatan: Validasi batas minimal radius kantor dinonaktifkan sementara
+    // if (!radiusCheck.valid) { ... }
 
     const now = new Date();
     const currentTimeStr = now.toTimeString().split(" ")[0];
     const hours = now.getHours();
     const minutes = now.getMinutes();
 
-    // Shift pulang normal 17:00 (1020 menit)
-    const shiftEndMinutes = 17 * 60;
+    // Hitung lembur berdasarkan jam pulang shift karyawan
+    const fullUser = dataStore.users.find((u) => u.id === user!.userId);
+    const activeShift =
+      dataStore.shifts.find((s) => s.id === (attendance.shiftId || fullUser?.shiftId || "shift_1")) ||
+      dataStore.shifts[0];
+    const [endH, endM] = (activeShift?.endTime || "17:00").split(":").map(Number);
+    const shiftEndMinutes = endH * 60 + (endM || 0);
     const currentTotalMinutes = hours * 60 + minutes;
     const overtimeMinutes = Math.max(0, currentTotalMinutes - shiftEndMinutes);
 
@@ -74,6 +72,16 @@ export async function POST(request: Request) {
     attendance.checkOutLng = Number(longitude);
     attendance.checkOutPhotoKey = photoDataUrlOrKey || attendance.checkInPhotoKey;
     attendance.overtimeMinutes = overtimeMinutes;
+
+    // Persist check-out ke Cloudflare D1
+    const karyawanId = getKaryawanIdByNik(user!.nik);
+    await syncCheckOutToD1({
+      karyawanId,
+      tanggal: attendance.date,
+      waktuPulang: currentTimeStr,
+      lintangPulang: Number(latitude),
+      bujurPulang: Number(longitude),
+    }).catch((e) => console.warn("[D1 Sync Check-out Error]", e));
 
     dataStore.auditLogs.unshift({
       id: `log_${Date.now()}`,

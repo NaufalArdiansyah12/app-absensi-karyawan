@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth-jwt";
 import { dataStore } from "@/lib/store";
+import { syncLeaveApplyToD1, getKaryawanIdByNik } from "@/lib/d1-client";
 
 export async function POST(request: Request) {
   try {
@@ -58,6 +59,17 @@ export async function POST(request: Request) {
     };
 
     dataStore.leaves.unshift(newLeave);
+
+    // Persist ke Cloudflare D1
+    const karyawanId = getKaryawanIdByNik(fullUser.nik);
+    await syncLeaveApplyToD1({
+      karyawanId,
+      jenisPengajuan: type,
+      tanggalMulai: startDate,
+      tanggalSelesai: endDate,
+      alasan: reason,
+      statusPersetujuan: "Menunggu Approval GM",
+    }).catch((e) => console.warn("[D1 Sync Leave Apply Error]", e));
 
     dataStore.auditLogs.unshift({
       id: `log_${Date.now()}`,
