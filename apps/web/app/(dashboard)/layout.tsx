@@ -34,9 +34,11 @@ import {
   Receipt,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import NutrilifeGMLayout from "@/components/NutrilifeGMLayout";
 
 const gmNav = [
   { title: "Dashboard", href: "/gm", icon: LayoutDashboard },
+  { title: "Penugasan Karyawan", href: "/gm/penugasan", icon: CheckSquare },
   { title: "Kondisi Perusahaan", href: "/gm/perusahaan", icon: Building2 },
   { title: "Monitoring Karyawan", href: "/gm/karyawan", icon: Users },
   { title: "Monitoring Absensi", href: "/gm/absensi", icon: Clock },
@@ -90,6 +92,21 @@ export default function DashboardLayout({
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("nutrilife_sidebar_open");
+    if (saved !== null) {
+      setOpen(saved === "true");
+    }
+  }, []);
+
+  const toggleSidebar = () => {
+    setOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem("nutrilife_sidebar_open", String(next));
+      return next;
+    });
+  };
   const navItems = pathname.startsWith("/gm")
     ? gmNav
     : pathname.startsWith("/hr")
@@ -119,6 +136,14 @@ export default function DashboardLayout({
     router.replace("/login");
   };
 
+  if (pathname.startsWith("/gm") || pathname.startsWith("/hr")) {
+    return (
+      <NutrilifeGMLayout currentUser={currentUser} onLogout={handleLogout}>
+        {children}
+      </NutrilifeGMLayout>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full">
       <div className="flex min-h-screen w-full flex-col gap-6 bg-[radial-gradient(circle_at_50%_0%,#F5F3F0_0%,#E8E5E1_100%)] p-6 md:p-8">
@@ -126,7 +151,7 @@ export default function DashboardLayout({
 
         <div className="flex flex-1 items-start gap-6">
           <aside
-            className={`sticky top-8 flex h-[calc(100vh-8rem)] min-h-[500px] shrink-0 flex-col justify-between rounded-[28px] border border-white/80 bg-white/80 px-2 py-4 shadow-sm backdrop-blur transition-[width] duration-200 ${
+            className={`sticky top-8 flex h-[calc(100vh-8rem)] min-h-[500px] shrink-0 flex-col justify-between rounded-[28px] border border-white/80 bg-white px-2 py-4 shadow-sm transition-[width] duration-200 ${
               open ? "w-56" : "w-16"
             }`}
           >
@@ -141,6 +166,7 @@ export default function DashboardLayout({
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={false}
                     title={item.title}
                     aria-label={item.title}
                     className={`${navBtn} ${
@@ -157,7 +183,7 @@ export default function DashboardLayout({
             </nav>
             <div className="flex flex-col gap-3">
               <button
-                onClick={() => setOpen(!open)}
+                onClick={toggleSidebar}
                 title={open ? "Perkecil sidebar" : "Perbesar sidebar"}
                 aria-label={open ? "Perkecil sidebar" : "Perbesar sidebar"}
                 aria-expanded={open}

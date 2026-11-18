@@ -59,7 +59,7 @@ export default function Navbar({ user }: { user: any }) {
   return (
     <header
       ref={ref}
-      className="relative z-30 flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-white/80 bg-white/80 px-6 py-3 shadow-sm backdrop-blur"
+      className="relative z-30 flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-white/80 bg-white px-6 py-3 shadow-sm"
     >
       <div className="flex min-w-[300px] flex-1 items-center gap-6">
         <div className="flex items-center gap-2">

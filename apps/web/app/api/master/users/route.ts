@@ -73,7 +73,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await dataStore.init();
-    const { user, errorResponse } = await authenticateRequest(request, ["SUPER_USER", "HR", "GM", "FINANCE"]);
+    const { user, errorResponse } = await authenticateRequest(request, ["SUPER_USER", "HR", "FINANCE"]);
     if (errorResponse) return errorResponse;
 
     const body: any = await request.json();
@@ -103,9 +103,6 @@ export async function PATCH(request: Request) {
     if (!target) {
       return NextResponse.json({ error: "Karyawan tidak ditemukan" }, { status: 404 });
     }
-    if (user!.role === "GM" && target.role !== "EMPLOYEE") {
-      return NextResponse.json({ error: "GM hanya dapat mengatur shift karyawan" }, { status: 403 });
-    }
 
     if (user!.role === "FINANCE" || user!.role === "SUPER_USER") {
       if (baseSalary !== undefined) target.baseSalary = Number(baseSalary);
@@ -127,6 +124,9 @@ export async function PATCH(request: Request) {
 
     let shift = target.shiftId ? dataStore.shifts.find((s) => s.id === target.shiftId) : undefined;
     if (shiftId) {
+      if (user!.role !== "HR" && user!.role !== "SUPER_USER") {
+        return NextResponse.json({ error: "Hanya HR yang dapat mengatur shift karyawan" }, { status: 403 });
+      }
       shift = dataStore.shifts.find((s) => s.id === shiftId);
       if (!shift) {
         return NextResponse.json({ error: "Shift tidak ditemukan" }, { status: 404 });

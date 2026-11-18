@@ -8,16 +8,24 @@ import { calculatePayroll } from "@/lib/payroll";
 
 export const rp = (n: number) => `Rp ${Math.round(Number(n) || 0).toLocaleString("id-ID")}`;
 
+let slipCache: { slips: any[]; ts: number } | null = null;
+
+// ponytail: in-memory module cache for slips (TTL 30s). Upgrade to TanStack Query if cross-tab sync needed.
 export function useFinanceData() {
   const gm = useGMData();
-  const [slips, setSlips] = useState<any[]>([]);
+  const [slips, setSlips] = useState<any[]>(() => slipCache?.slips || []);
   const [busy, setBusy] = useState(false);
 
-  const loadSlips = useCallback(async () => {
+  const loadSlips = useCallback(async (force = false) => {
+    if (!force && slipCache && Date.now() - slipCache.ts < 30_000) {
+      setSlips(slipCache.slips);
+      return;
+    }
     try {
       const r = await fetch("/api/payroll/slip");
       const d: any = await r.json();
-      setSlips(d.slips || []);
+      slipCache = { slips: d.slips || [], ts: Date.now() };
+      setSlips(slipCache.slips);
     } catch {}
   }, []);
 
@@ -26,7 +34,7 @@ export function useFinanceData() {
   }, [loadSlips]);
 
   const reloadAll = useCallback(async () => {
-    await Promise.all([gm.reload(), loadSlips()]);
+    await Promise.all([gm.reload(), loadSlips(true)]);
   }, [gm, loadSlips]);
 
   const generate = async (month: number, year: number) => {

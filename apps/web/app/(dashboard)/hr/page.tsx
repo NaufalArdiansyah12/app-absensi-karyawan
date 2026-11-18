@@ -21,7 +21,27 @@ export default function HRDashboardPage() {
   const recent = [...attendances].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
 
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12 max-w-7xl mx-auto">
+      {/* 1. Hero Welcome Banner */}
+      <div className="relative overflow-hidden rounded-2xl border border-emerald-200/80 bg-gradient-to-r from-[#dff2e4] via-[#ecf7f0] to-[#daf0e0] p-6 shadow-xs xl:col-span-12">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-zinc-900">
+              Selamat Datang, Tim HR Nutrilife!
+            </h1>
+            <p className="mt-1 text-xs md:text-sm text-zinc-700 font-medium flex items-center gap-1.5">
+              <span>Kelola presensi, validasi karyawan, dan persetujuan tahap akhir cuti/izin</span>
+              <span>💚</span>
+            </p>
+          </div>
+          <div className="hidden lg:block text-right">
+            <p className="text-xs font-semibold text-emerald-900/90 italic border-l-2 border-emerald-600/40 pl-4 py-1">
+              “Kedisiplinan & ketepatan data<br />adalah fondasi tim berprestasi”
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-6 xl:col-span-8">
         <PageHead title="Dashboard HR" desc="Ringkasan operasional dan antrean approval hari ini." />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

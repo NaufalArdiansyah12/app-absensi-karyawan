@@ -4,6 +4,6 @@
   "scripts": {
     "dev:web": "pnpm --filter web dev",
     "build:web": "pnpm --filter web build",
-    "test": "node --test apps/web/tests/domain.test.mjs"
+    "test": "node --test apps/web/tests/*.test.mjs"
   }
 }

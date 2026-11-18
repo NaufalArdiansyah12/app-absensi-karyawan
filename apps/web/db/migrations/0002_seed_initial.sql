@@ -11,7 +11,10 @@ INSERT OR IGNORE INTO divisi (id, nama_divisi) VALUES
 (1, 'OPERASIONAL'),
 (2, 'HR'),
 (3, 'FINANCE'),
-(4, 'IT');
+(4, 'IT'),
+(5, 'LOGISTIK'),
+(6, 'PRODUKSI'),
+(7, 'MARKETING');
 
 -- Seed 3. Jabatan
 INSERT OR IGNORE INTO jabatan (id, nama_jabatan) VALUES
@@ -20,7 +23,15 @@ INSERT OR IGNORE INTO jabatan (id, nama_jabatan) VALUES
 (3, 'HR Specialist'),
 (4, 'Finance Officer'),
 (5, 'Staff Operasional'),
-(6, 'Staff Gudang');
+(6, 'Staff Gudang'),
+(7, 'Teknisi Mesin'),
+(8, 'Quality Control'),
+(9, 'Kurir Ekspedisi'),
+(10, 'Frontend Engineer'),
+(11, 'Staff Gudang Senior'),
+(12, 'Social Media Specialist'),
+(13, 'Operator Mesin'),
+(14, 'Content Creator');
 
 -- Seed 4. Lokasi Kantor
 INSERT OR IGNORE INTO lokasi_kantor (id, nama_lokasi, lintang, bujur, radius_meter) VALUES
@@ -37,7 +48,15 @@ INSERT OR IGNORE INTO users (id, id_role, nama_pengguna, surel, kata_sandi_hash,
 (3, 3, 'HR001', 'hr@nutrilife.com', '7dc2808b0f80bcff37fa0566378e718ae1d622f6d0f81d8977a49ba8ad49cf7a', 1),
 (4, 4, 'FN001', 'finance@nutrilife.com', '7dc2808b0f80bcff37fa0566378e718ae1d622f6d0f81d8977a49ba8ad49cf7a', 1),
 (5, 5, 'EMP001', 'karyawan@nutrilife.com', '5722421319c5c0d12e617d7b1a646cba309f4007886b71f9cfd05b8104ec033b', 1),
-(6, 5, 'EMP002', 'rian@nutrilife.com', '5722421319c5c0d12e617d7b1a646cba309f4007886b71f9cfd05b8104ec033b', 1);
+(6, 5, 'EMP002', 'rian@nutrilife.com', '5722421319c5c0d12e617d7b1a646cba309f4007886b71f9cfd05b8104ec033b', 1),
+(7, 5, 'EMP003', 'bima.sakti@nutrilife.com', '5722421319c5c0d12e617d7b1a646cba309f4007886b71f9cfd05b8104ec033b', 1),
+(8, 5, 'EMP004', 'dinda.permata@nutrilife.com', '5722421319c5c0d12e617d7b1a646cba309f4007886b71f9cfd05b8104ec033b', 1),
+(9, 5, 'EMP005', 'eko.wahyudi@nutrilife.com', '5722421319c5c0d12e617d7b1a646cba309f4007886b71f9cfd05b8104ec033b', 1),
+(10, 5, 'EMP006', 'fitri.handayani@nutrilife.com', '5722421319c5c0d12e617d7b1a646cba309f4007886b71f9cfd05b8104ec033b', 1),
+(11, 5, 'EMP007', 'gilang.ramadhan@nutrilife.com', '5722421319c5c0d12e617d7b1a646cba309f4007886b71f9cfd05b8104ec033b', 1),
+(12, 5, 'EMP008', 'hani.anggraini@nutrilife.com', '5722421319c5c0d12e617d7b1a646cba309f4007886b71f9cfd05b8104ec033b', 1),
+(13, 5, 'EMP009', 'indra.kusuma@nutrilife.com', '5722421319c5c0d12e617d7b1a646cba309f4007886b71f9cfd05b8104ec033b', 1),
+(14, 5, 'EMP010', 'jessica.tan@nutrilife.com', '5722421319c5c0d12e617d7b1a646cba309f4007886b71f9cfd05b8104ec033b', 1);
 
 -- Seed 7. Karyawan
 INSERT OR IGNORE INTO karyawan (id, id_user, nip, nama_lengkap, id_divisi, id_jabatan, id_lokasi, id_shift, gaji_pokok, sisa_kuota_cuti) VALUES
@@ -46,4 +65,12 @@ INSERT OR IGNORE INTO karyawan (id, id_user, nip, nama_lengkap, id_divisi, id_ja
 (3, 3, 'HR001', 'Siti Rahma (HR)', 2, 3, 1, 1, 8000000.0, 12),
 (4, 4, 'FN001', 'Dewi Lestari (Finance)', 3, 4, 1, 1, 8500000.0, 12),
 (5, 5, 'EMP001', 'Ahmad Fauzi', 1, 5, 1, 1, 6000000.0, 12),
-(6, 6, 'EMP002', 'Rian Pratama', 1, 6, 1, 1, 5500000.0, 10);
+(6, 6, 'EMP002', 'Rian Pratama', 5, 6, 1, 1, 5500000.0, 10),
+(7, 7, 'EMP003', 'Bima Sakti', 6, 7, 1, 2, 6200000.0, 12),
+(8, 8, 'EMP004', 'Dinda Permata', 1, 8, 1, 1, 5800000.0, 11),
+(9, 9, 'EMP005', 'Eko Wahyudi', 5, 9, 1, 3, 5200000.0, 9),
+(10, 10, 'EMP006', 'Fitri Handayani', 4, 10, 1, 1, 8500000.0, 12),
+(11, 11, 'EMP007', 'Gilang Ramadhan', 6, 11, 1, 2, 6000000.0, 8),
+(12, 12, 'EMP008', 'Hani Anggraini', 7, 12, 1, 1, 5900000.0, 12),
+(13, 13, 'EMP009', 'Indra Kusuma', 6, 13, 1, 3, 5400000.0, 7),
+(14, 14, 'EMP010', 'Jessica Tan', 7, 14, 1, 1, 6500000.0, 14);

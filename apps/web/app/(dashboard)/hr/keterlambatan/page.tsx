@@ -8,7 +8,7 @@ import {
 } from "@/components/gm-shared";
 
 export default function LateMonitoringPage() {
-  const { attendances } = useGMData();
+  const { attendances, reload } = useGMData();
   const [date, setDate] = useState("");
   const [q, setQ] = useState("");
   const [sel, setSel] = useState<any | null>(null);
@@ -81,7 +81,7 @@ export default function LateMonitoringPage() {
         </div>
       </div>
 
-      {sel && <AttModal sel={sel} onClose={() => setSel(null)} />}
+      {sel && <AttModal key={sel.id} sel={sel} onClose={() => setSel(null)} onDone={reload} />}
     </div>
   );
 }

@@ -23,7 +23,26 @@ const FILTERS = [
   ["BELUM", "Belum Hadir"],
 ] as const;
 
-function EmployeeCalendar({ userLeaves, userAtts }: { userLeaves: any[]; userAtts: any[] }) {
+function isAbsentDay(iso: string, todayIso: string, userLeaves: any[], userAtts: any[]): boolean {
+  if (iso >= todayIso) return false;
+  const dow = new Date(`${iso}T00:00:00`).getDay();
+  if (dow === 0 || dow === 6) return false;
+  const hasLeave = userLeaves.some((l) => l.status !== "DITOLAK_GM" && l.status !== "DITOLAK_HR" && l.startDate <= iso && iso <= l.endDate);
+  if (hasLeave) return false;
+  return !userAtts.some((a) => a.date === iso);
+}
+
+function countAbsentInMonth(y: number, m: number, todayIso: string, userLeaves: any[], userAtts: any[]): number {
+  const days = new Date(y, m + 1, 0).getDate();
+  let count = 0;
+  for (let d = 1; d <= days; d++) {
+    const iso = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    if (isAbsentDay(iso, todayIso, userLeaves, userAtts)) count++;
+  }
+  return count;
+}
+
+function EmployeeCalendar({ userLeaves, userAtts, todayIso }: { userLeaves: any[]; userAtts: any[]; todayIso: string }) {
   const now = new Date();
   const [cursor, setCursor] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
   const y = cursor.getFullYear();
@@ -33,12 +52,15 @@ function EmployeeCalendar({ userLeaves, userAtts }: { userLeaves: any[]; userAtt
     ...Array.from({ length: new Date(y, m + 1, 0).getDate() }, (_, i) => i + 1),
   ];
 
+  const absentCount = countAbsentInMonth(y, m, todayIso, userLeaves, userAtts);
+
   const dayStyle = (d: number) => {
     const iso = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const lv = userLeaves.find((l) => l.status !== "DITOLAK_GM" && l.status !== "DITOLAK_HR" && l.startDate <= iso && iso <= l.endDate);
     if (lv) return lv.type === "CUTI_TAHUNAN" ? "bg-blue-100 text-blue-700 font-bold" : "bg-amber-100 text-amber-700 font-bold";
     const att = userAtts.find((a) => a.date === iso);
     if (att) return att.status === "TEPAT_WAKTU" ? "bg-emerald-100 text-emerald-700 font-bold" : "bg-rose-100 text-rose-700 font-bold";
+    if (isAbsentDay(iso, todayIso, userLeaves, userAtts)) return "bg-zinc-800 text-white font-bold";
     return "text-zinc-600";
   };
 
@@ -47,6 +69,7 @@ function EmployeeCalendar({ userLeaves, userAtts }: { userLeaves: any[]; userAtt
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-bold text-zinc-900">
           Kalender • {cursor.toLocaleDateString("id-ID", { month: "long", year: "numeric" })}
+          {absentCount > 0 && <span className="ml-2 font-semibold text-zinc-500">({absentCount}x tidak masuk)</span>}
         </span>
         <div className="flex gap-1">
           <button aria-label="Bulan sebelumnya" onClick={() => setCursor(new Date(y, m - 1, 1))} className="flex h-6 w-6 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-200">
@@ -72,6 +95,7 @@ function EmployeeCalendar({ userLeaves, userAtts }: { userLeaves: any[]; userAtt
         <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-full bg-rose-400" /> Terlambat</span>
         <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-full bg-blue-400" /> Cuti</span>
         <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-full bg-amber-400" /> Izin/Sakit</span>
+        <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-full bg-zinc-800" /> Tidak Masuk</span>
       </div>
     </div>
   );
@@ -420,9 +444,11 @@ export default function EmployeesPage() {
                           <ShieldCheck className="h-3 w-3" /> Validasi
                         </button>
                       )}
-                      <button onClick={() => setShiftUser(r.user)} className={linkBtn}>
-                        <Clock className="h-3 w-3" /> Shift
-                      </button>
+                      {isHR && (
+                        <button onClick={() => setShiftUser(r.user)} className={linkBtn}>
+                          <Clock className="h-3 w-3" /> Shift
+                        </button>
+                      )}
                       <button onClick={() => setSel(r)} className={linkBtn}>
                         Detail <ChevronRight className="h-3 w-3" />
                       </button>
@@ -523,16 +549,18 @@ export default function EmployeesPage() {
                 <div className="text-xs text-zinc-500">{sel.user.nik} • {sel.user.email}</div>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    const u = sel.user;
-                    setSel(null);
-                    setShiftUser(u);
-                  }}
-                  className={linkBtn}
-                >
-                  <Clock className="h-3 w-3" /> Atur Shift
-                </button>
+                {isHR && (
+                  <button
+                    onClick={() => {
+                      const u = sel.user;
+                      setSel(null);
+                      setShiftUser(u);
+                    }}
+                    className={linkBtn}
+                  >
+                    <Clock className="h-3 w-3" /> Atur Shift
+                  </button>
+                )}
                 <span className={`${pill} ${sel.cls}`}>{sel.label}</span>
               </div>
             </div>
@@ -545,6 +573,7 @@ export default function EmployeesPage() {
                 ["Jam Istirahat", `${sel.shift.breakStartTime || "12:00"} - ${sel.shift.breakEndTime || "13:00"} WIB`],
                 ["Sisa Cuti", `${sel.user.leaveQuota} hari`],
                 ["Total Hadir", `${sel.hadir} hari`],
+                ["Tidak Masuk", `${countAbsentInMonth(new Date().getFullYear(), new Date().getMonth(), today, selLeaves, selAtts)}x (bulan ini)`],
                 ["Tepat Waktu", `${sel.tepat}x (${sel.pct}%)`],
                 ["Terlambat", `${sel.telat}x (${sel.menitTelat} mnt)`],
                 ["Total Pengajuan", `${selLeaves.length}x`],
@@ -556,7 +585,7 @@ export default function EmployeesPage() {
               ))}
             </dl>
 
-            <EmployeeCalendar userLeaves={selLeaves} userAtts={selAtts} />
+            <EmployeeCalendar userLeaves={selLeaves} userAtts={selAtts} todayIso={today} />
 
             <div className="space-y-2">
               <div className="text-xs font-bold text-zinc-900">Keterangan Cuti & Izin ({selLeaves.length})</div>

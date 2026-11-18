@@ -144,3 +144,19 @@ export const logAudit = sqliteTable("log_audit", {
   alamatIp: text("alamat_ip"),
   dibuatPada: text("dibuat_pada").default(sql`(datetime('now'))`),
 });
+
+// 12. TABEL PENUGASAN (TASK DELEGATION GM)
+export const penugasan = sqliteTable("penugasan", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  judul: text("judul").notNull(),
+  deskripsi: text("deskripsi").notNull(),
+  dibuatOleh: integer("dibuat_oleh").notNull().references(() => users.id, { onDelete: "cascade" }),
+  ditugaskanKe: integer("ditugaskan_ke").notNull().references(() => karyawan.id, { onDelete: "cascade" }),
+  prioritas: text("prioritas").notNull().default("SEDANG"), // RENDAH, SEDANG, TINGGI, URGENT
+  status: text("status").notNull().default("PENDING"), // PENDING, IN_PROGRESS, COMPLETED, CLOSED
+  tenggatWaktu: text("tenggat_waktu").notNull(), // Format YYYY-MM-DD
+  catatanPenyelesaian: text("catatan_penyelesaian"),
+  catatanRevisi: text("catatan_revisi"),
+  dibuatPada: text("dibuat_pada").default(sql`(datetime('now'))`),
+  diperbaruiPada: text("diperbarui_pada").default(sql`(datetime('now'))`),
+});

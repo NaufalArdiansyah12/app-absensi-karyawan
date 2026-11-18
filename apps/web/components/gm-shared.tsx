@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Calendar as CalendarIcon, Check, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 
-export const card = "rounded-[28px] border border-white/80 bg-white/80 p-6 shadow-sm backdrop-blur";
+export const card = "rounded-[28px] border border-zinc-200/60 bg-white p-6 shadow-sm";
 export const pill = "rounded-full px-2.5 py-1 text-[11px] font-semibold";
 export const btnDark =
   "inline-flex items-center gap-1.5 rounded-full bg-zinc-950 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-zinc-800 disabled:opacity-50";
@@ -373,7 +373,7 @@ export function LeaveBadge({ status }: { status: string }) {
 
 export function Kpi({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon: any }) {
   return (
-    <div className="flex flex-col gap-1 rounded-[22px] border border-white/60 bg-white/70 p-4 shadow-sm backdrop-blur">
+    <div className="flex flex-col gap-1 rounded-[22px] border border-zinc-200/60 bg-white p-4 shadow-sm">
       <div className="flex items-center gap-1.5 text-xs text-zinc-400">
         <Icon className="h-3.5 w-3.5" />
         <span className="font-medium">{label}</span>
@@ -441,26 +441,57 @@ export function CalendarWidget() {
   );
 }
 
-export function useGMData() {
-  const [users, setUsers] = useState<any[]>([]);
-  const [leaves, setLeaves] = useState<any[]>([]);
-  const [attendances, setAttendances] = useState<any[]>([]);
-  const [shifts, setShifts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+let gmCache: { users: any[]; leaves: any[]; attendances: any[]; shifts: any[]; ts: number } | null = null;
+let gmInflight: Promise<any> | null = null;
 
-  const reload = useCallback(async () => {
-    try {
-      const rs = await Promise.all([
+// ponytail: in-memory module cache (TTL 30s) + promise dedupe. Upgrade to TanStack Query if cross-tab sync needed.
+export function useGMData() {
+  const [users, setUsers] = useState<any[]>(() => gmCache?.users || []);
+  const [leaves, setLeaves] = useState<any[]>(() => gmCache?.leaves || []);
+  const [attendances, setAttendances] = useState<any[]>(() => gmCache?.attendances || []);
+  const [shifts, setShifts] = useState<any[]>(() => gmCache?.shifts || []);
+  const [loading, setLoading] = useState(() => !gmCache);
+
+  const reload = useCallback(async (force = false) => {
+    const isFresh = gmCache && Date.now() - gmCache.ts < 30_000;
+    if (!force && isFresh) {
+      setUsers(gmCache!.users);
+      setLeaves(gmCache!.leaves);
+      setAttendances(gmCache!.attendances);
+      setShifts(gmCache!.shifts);
+      setLoading(false);
+      return;
+    }
+
+    if (!gmInflight) {
+      gmInflight = Promise.all([
         fetch("/api/master/users"),
         fetch("/api/leaves/pending?all=1"),
         fetch("/api/attendance/history"),
         fetch("/api/master/shifts"),
-      ]);
-      const [u, l, a, s]: any[] = await Promise.all(rs.map((r) => r.json()));
-      setUsers(u.users || []);
-      setLeaves(l.pendingLeaves || []);
-      setAttendances(a.attendances || []);
-      setShifts(s.shifts || []);
+      ])
+        .then((rs) => Promise.all(rs.map((r) => r.json())))
+        .then(([u, l, a, s]: any[]) => {
+          gmCache = {
+            users: u.users || [],
+            leaves: l.pendingLeaves || [],
+            attendances: a.attendances || [],
+            shifts: s.shifts || [],
+            ts: Date.now(),
+          };
+          return gmCache;
+        })
+        .finally(() => {
+          gmInflight = null;
+        });
+    }
+
+    try {
+      const data = await gmInflight;
+      setUsers(data.users);
+      setLeaves(data.leaves);
+      setAttendances(data.attendances);
+      setShifts(data.shifts);
     } catch (e) {
       console.error(e);
     } finally {
@@ -472,7 +503,7 @@ export function useGMData() {
     reload();
   }, [reload]);
 
-  return { users, leaves, attendances, shifts, loading, reload };
+  return { users, leaves, attendances, shifts, loading, reload: () => reload(true) };
 }
 
 export type DisciplineRow = {

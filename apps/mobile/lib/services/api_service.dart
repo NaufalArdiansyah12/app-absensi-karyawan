@@ -6,6 +6,7 @@ import '../models/user_model.dart';
 import '../models/attendance_model.dart';
 import '../models/leave_model.dart';
 import '../models/payslip_model.dart';
+import '../models/task_model.dart';
 
 class ApiService {
   static const String _tokenKey = 'jwt_token';
@@ -197,6 +198,49 @@ class ApiService {
       return slips;
     } else {
       throw Exception(data['error'] ?? 'Gagal memuat slip gaji');
+    }
+  }
+
+  // 9. Get My Tasks
+  static Future<List<TaskModel>> getMyTasks() async {
+    final response = await http.get(
+      Uri.parse(ApiConstants.tasks),
+      headers: await _authHeaders(),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      final tasks = (data['tasks'] as List)
+          .map((i) => TaskModel.fromJson(i))
+          .toList();
+      return tasks;
+    } else {
+      throw Exception(data['error'] ?? 'Gagal memuat daftar penugasan');
+    }
+  }
+
+  // 10. Update Task Status
+  static Future<TaskModel> updateTaskStatus({
+    required String taskId,
+    required String status,
+    String? completionNotes,
+  }) async {
+    final payload = <String, dynamic>{'status': status};
+    if (completionNotes != null) {
+      payload['completionNotes'] = completionNotes;
+    }
+
+    final response = await http.patch(
+      Uri.parse(ApiConstants.taskDetail(taskId)),
+      headers: await _authHeaders(),
+      body: jsonEncode(payload),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return TaskModel.fromJson(data['task']);
+    } else {
+      throw Exception(data['error'] ?? 'Gagal memperbarui status tugas');
     }
   }
 }

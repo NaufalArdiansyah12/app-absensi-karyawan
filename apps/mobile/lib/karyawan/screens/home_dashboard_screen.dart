@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
@@ -15,7 +14,7 @@ import '../widgets/dashboard/attendance_hero_card.dart';
 import '../widgets/dashboard/greeting_header.dart';
 import '../widgets/dashboard/employee_info_hub_section.dart';
 import 'profile_screen.dart';
-import 'schedule_screen.dart';
+import 'task_assignment_screen.dart';
 import 'services_screen.dart';
 import 'sick_leave_screen.dart';
 
@@ -30,6 +29,7 @@ class HomeDashboardScreen extends StatefulWidget {
 
 class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   int _currentTabIndex = 0;
+  final Set<int> _visitedTabs = {0};
   late UserModel _user;
   List<AttendanceModel> _recentAttendances = [];
   List<LeaveModel> _recentLeaves = [];
@@ -48,8 +48,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     _user = widget.currentUser;
     _requestLocationPermissionInAdvance();
     _refreshData();
-    // Real-time background sync every 15 detik
-    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+    // Background sync 60 detik (cegah freeze saat navigasi)
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
       if (mounted) {
         _refreshData(showIndicator: false);
       }
@@ -214,6 +214,15 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     }
   }
 
+  void _switchTab(int index) {
+    if (_currentTabIndex != index) {
+      setState(() {
+        _currentTabIndex = index;
+        _visitedTabs.add(index);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -223,9 +232,15 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         index: _currentTabIndex,
         children: [
           _buildDashboardTab(),
-          ScheduleScreen(onBackToHome: () => setState(() => _currentTabIndex = 0)),
-          ServicesScreen(currentUser: _user),
-          ProfileScreen(user: _user),
+          _visitedTabs.contains(1)
+              ? TaskAssignmentScreen(onBackToHome: () => _switchTab(0))
+              : const SizedBox.shrink(),
+          _visitedTabs.contains(2)
+              ? ServicesScreen(currentUser: _user)
+              : const SizedBox.shrink(),
+          _visitedTabs.contains(3)
+              ? ProfileScreen(user: _user)
+              : const SizedBox.shrink(),
         ],
       ),
       bottomNavigationBar: _buildLiquidGlassBottomDock(),
@@ -269,13 +284,13 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   approvalBadge: _pendingApprovalCount > 0
                       ? '$_pendingApprovalCount'
                       : null,
-                  onLeaveTap: () => setState(() => _currentTabIndex = 2),
+                  onLeaveTap: () => _switchTab(2),
                   onBreakTap: () =>
                       _showToast('Waktu istirahat reguler: 12:00 - 13:00 WIB'),
                   onVisitTap: () => _showToast('Kunjungan Luar / Visit Geotag'),
-                  onOvertimeTap: () => setState(() => _currentTabIndex = 2),
+                  onOvertimeTap: () => _switchTab(2),
                   onApprovalTap: () {
-                    setState(() => _currentTabIndex = 2);
+                    _switchTab(2);
                     _showToast(
                       _pendingApprovalCount > 0
                           ? '$_pendingApprovalCount permohonan dalam proses review'
@@ -302,10 +317,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   sickLeaveCount: _sickLeaveCount,
                   leaveQuota: _user.leaveQuota,
                   recentLeaves: _recentLeaves,
-                  onNavigateToSchedule: () =>
-                      setState(() => _currentTabIndex = 1),
-                  onNavigateToLeaves: () =>
-                      setState(() => _currentTabIndex = 2),
+                  onNavigateToSchedule: () => _switchTab(1),
+                  onNavigateToLeaves: () => _switchTab(2),
                   onAnnouncementTap: () => _showToast(
                       'Sosialisasi Jam Kerja: Berlaku efektif mulai minggu ini.'),
                 ),
@@ -318,46 +331,35 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     );
   }
 
-  // Liquid Glass Floating Navigation Dock
+  // ponytail: drop BackdropFilter blur to avoid offscreen GPU saveLayer cost. Add back if target device GPU >= Snapdragon 8.
   Widget _buildLiquidGlassBottomDock() {
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + bottomInset * 0.5),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: Container(
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.white.withValues(alpha: 0.88),
-                  Colors.white.withValues(alpha: 0.75),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(32),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.90),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primary.withValues(alpha: 0.12),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+      child: Container(
+        height: 64,
+        decoration: BoxDecoration(
+          color: const Color(0xF2FFFFFF),
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(
+            color: Colors.white,
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primary.withValues(alpha: 0.12),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
             ),
-            child: Row(
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
               children: [
                 // 1. Beranda
                 _buildLiquidNavItem(
@@ -367,12 +369,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   label: 'Beranda',
                 ),
 
-                // 2. Jadwal
+                // 2. Penugasan
                 _buildLiquidNavItem(
                   index: 1,
-                  icon: Icons.calendar_today_outlined,
-                  activeIcon: Icons.calendar_month_rounded,
-                  label: 'Jadwal',
+                  icon: Icons.assignment_outlined,
+                  activeIcon: Icons.assignment_rounded,
+                  label: 'Penugasan',
                 ),
 
                 // 3. Layanan
@@ -393,9 +395,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               ],
             ),
           ),
-        ),
-      ),
-    );
+        );
   }
 
   Widget _buildLiquidNavItem({
@@ -408,7 +408,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
     return Expanded(
       child: InkWell(
-        onTap: () => setState(() => _currentTabIndex = index),
+        onTap: () => _switchTab(index),
         borderRadius: BorderRadius.circular(20),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),

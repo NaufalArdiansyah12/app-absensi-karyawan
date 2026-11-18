@@ -123,6 +123,14 @@ const NIK_TO_KARYAWAN_ID: Record<string, number> = {
   FN001: 4,
   EMP001: 5,
   EMP002: 6,
+  EMP003: 7,
+  EMP004: 8,
+  EMP005: 9,
+  EMP006: 10,
+  EMP007: 11,
+  EMP008: 12,
+  EMP009: 13,
+  EMP010: 14,
 };
 
 export function getKaryawanIdByNik(nik: string): number {
@@ -323,4 +331,91 @@ export async function syncUserShiftToD1(nik: string, shiftId: string) {
     `UPDATE karyawan SET id_shift = ?, diperbarui_pada = datetime('now') WHERE nip = ?;`,
     [numShiftId, nik]
   );
+}
+
+/**
+ * Sinkronisasi Tugas Baru ke tabel penugasan di Cloudflare D1
+ */
+export async function syncTaskCreateToD1(task: {
+  title: string;
+  description: string;
+  assignedByNik?: string;
+  assignedToNik?: string;
+  priority: string;
+  status: string;
+  dueDate: string;
+}) {
+  const creatorId = task.assignedByNik ? getKaryawanIdByNik(task.assignedByNik) : 2;
+  const targetId = task.assignedToNik ? getKaryawanIdByNik(task.assignedToNik) : 5;
+
+  const createTableSql = `
+    CREATE TABLE IF NOT EXISTS penugasan (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      judul TEXT NOT NULL,
+      deskripsi TEXT NOT NULL,
+      dibuat_oleh INTEGER NOT NULL,
+      ditugaskan_ke INTEGER NOT NULL,
+      prioritas TEXT NOT NULL DEFAULT 'SEDANG',
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      tenggat_waktu TEXT NOT NULL,
+      catatan_penyelesaian TEXT,
+      catatan_revisi TEXT,
+      dibuat_pada TEXT DEFAULT CURRENT_TIMESTAMP,
+      diperbarui_pada TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+  await executeD1Query(createTableSql);
+
+  const sql = `
+    INSERT INTO penugasan (
+      judul, deskripsi, dibuat_oleh, ditugaskan_ke, prioritas, status, tenggat_waktu, dibuat_pada, diperbarui_pada
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'));
+  `;
+  await executeD1Query(sql, [
+    task.title,
+    task.description,
+    creatorId,
+    targetId,
+    task.priority,
+    task.status,
+    task.dueDate,
+  ]);
+}
+
+/**
+ * Sinkronisasi Update Tugas ke tabel penugasan di Cloudflare D1
+ */
+export async function syncTaskUpdateToD1(params: {
+  title: string;
+  status?: string;
+  completionNotes?: string;
+  revisionNotes?: string;
+}) {
+  const sets: string[] = ["diperbarui_pada = datetime('now')"];
+  const values: any[] = [];
+
+  if (params.status) {
+    sets.push("status = ?");
+    values.push(params.status);
+  }
+  if (params.completionNotes !== undefined) {
+    sets.push("catatan_penyelesaian = ?");
+    values.push(params.completionNotes);
+  }
+  if (params.revisionNotes !== undefined) {
+    sets.push("catatan_revisi = ?");
+    values.push(params.revisionNotes);
+  }
+
+  values.push(params.title);
+
+  const sql = `UPDATE penugasan SET ${sets.join(", ")} WHERE judul = ?;`;
+  await executeD1Query(sql, values);
+}
+
+/**
+ * Sinkronisasi Hapus Tugas dari tabel penugasan di Cloudflare D1
+ */
+export async function syncTaskDeleteToD1(title: string) {
+  await executeD1Query(`DELETE FROM penugasan WHERE judul = ?;`, [title]);
 }

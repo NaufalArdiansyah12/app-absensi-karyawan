@@ -9,4 +9,6 @@ class ApiConstants {
   static const String leavesApply = '$baseUrl/leaves/apply';
   static const String myLeaves = '$baseUrl/leaves/my-leaves';
   static const String payslip = '$baseUrl/payroll/slip';
+  static const String tasks = '$baseUrl/tasks';
+  static String taskDetail(String id) => '$baseUrl/tasks/$id';
 }
