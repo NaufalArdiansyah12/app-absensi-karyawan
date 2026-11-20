@@ -2,21 +2,17 @@
 
 ## Repository Overview
 Monorepo using `pnpm` workspaces:
-- `apps/web`: Next.js 14 App Router (admin dashboard & API routes) with Cloudflare Workers/D1 target.
-- `apps/mobile`: Flutter client for employee check-in and leave requests.
+- `apps/web`: Laravel + Inertia React web application and API backend, using Supabase PostgreSQL and Cloudflare R2.
+- `apps/mobile`: Flutter client for employee check-in and leave requests, connected to Laravel API.
 
 ## Essential Commands
 
 ### Web (`apps/web`)
-- **Install deps**: `pnpm install` (from workspace root)
-- **Run domain unit tests**: `pnpm test`
-- **Run single test**: `node --test --test-name-pattern="Haversine" apps/web/tests/domain.test.mjs`
-- **Typecheck**: `pnpm --filter web exec tsc --noEmit`
+- **Install deps**: `composer install` and `npm install` from `apps/web`
+- **Run tests**: `cd apps/web && php artisan test`
 - **Build**: `pnpm build:web`
-- **Dev server**: `pnpm dev:web` (runs on `http://localhost:3000`)
-- **D1 Migrations (local)**: `pnpm --filter web db:migrate:local`
-- **D1 Migrations (remote)**: `pnpm --filter web db:migrate:remote`
-- **Drizzle codegen**: `pnpm --filter web db:generate`
+- **Dev server**: `pnpm dev:web`; Laravel API/web server: `cd apps/web && php artisan serve --port=8000`
+- **Database migrations**: `cd apps/web && php artisan migrate`
 
 ### Mobile (`apps/mobile`)
 - **Get packages**: `cd apps/mobile && flutter pub get`
@@ -26,14 +22,12 @@ Monorepo using `pnpm` workspaces:
 
 ## Key Architecture & Quirks
 
-### 1. Web Data Layer & Cloudflare D1
-- **Current Runtime Store**: `apps/web/app/api/**` route handlers use the in-memory singleton `dataStore` from `apps/web/lib/store.ts` for edge/local dev.
-- **Persistent D1 Schema**: `apps/web/db/schema.ts` defines the SQLite/D1 schema for Drizzle ORM. If modifying database structure, update `apps/web/db/schema.ts` and run `pnpm --filter web db:generate`.
-- **R2 Storage**: `apps/web/lib/r2.ts` provides storage bindings. In dev without active Wrangler R2 binding, it falls back to a stub path `/api/media/<key>`.
+### 1. Laravel Data Layer & Cloudflare Storage
+- **Database**: Laravel uses Supabase PostgreSQL through `apps/web/.env`.
+- **Object storage**: Laravel S3 disk connects to Cloudflare R2. Keep credentials in local `.env`, never commit secrets.
 
 ### 2. Auth & RBAC
-- Passwords hashed via PBKDF2 SHA-256 (`apps/web/lib/auth-jwt.ts`). Tokens signed with HS256 using `jose`.
-- `authenticateRequest` checks both `Authorization: Bearer <token>` header (used by Flutter) and `nutrilife_session` cookie (used by web UI).
+- Laravel authentication and Sanctum token authentication support web session cookies and Flutter Bearer tokens.
 - Default seed accounts:
   - Super User: `SU001` / `admin123`
   - GM: `GM001` / `admin123`
@@ -42,18 +36,18 @@ Monorepo using `pnpm` workspaces:
   - Employee: `EMP001` / `karyawan123`
 
 ### 3. Business Domain Constraints
-- **Leave State Machine** (`apps/web/lib/leave-machine.ts`):
+- **Leave State Machine** (`apps/web/app/Services/LeaveMachineService.php`):
   - Strictly 2-tier: `MENUNGGU_GM` -> (GM approve) -> `MENUNGGU_HR` -> (HR approve) -> `FINAL_DISETUJUI`.
   - GM cannot process `MENUNGGU_HR`; HR cannot process `MENUNGGU_GM`.
   - Quota deduction occurs **only** when HR approves a request with type `CUTI_TAHUNAN`. Non-annual leaves (`IZIN_SAKIT`, etc.) do not deduct quota.
-- **Geofencing** (`apps/web/lib/geofence.ts`):
+- **Geofencing** (`apps/web/app/Services/GeofenceService.php`):
   - Haversine distance in meters. Check-in/out fails if user distance exceeds `radiusMeters` of the active office.
-- **Payroll Formula** (`apps/web/lib/payroll.ts`):
+- **Payroll Formula** (`apps/web/app/Services/PayrollService.php`):
   - Late penalty: Rp 1.000 / minute.
   - Absent penalty: `baseSalary / workingDaysInMonth` (default 22 days).
   - Overtime pay: `1.5 * (baseSalary / 173) * overtimeHours` (PP 35/2021).
   - BPJS & Tax deduction: flat 4% of `baseSalary`.
 
 ### 4. Mobile API Connection
-- `apps/mobile/lib/services/api_constants.dart` points to `http://localhost:3000/api`.
-- When running mobile app on Android Emulator, change `baseUrl` to `http://10.0.2.2:3000/api`.
+- `apps/mobile/lib/services/api_constants.dart` selects Laravel's local `http://localhost:8000/api` or ngrok URL.
+- For Android Emulator, use `http://10.0.2.2:8000/api` for local backend.

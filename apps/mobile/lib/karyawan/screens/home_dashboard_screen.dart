@@ -13,7 +13,9 @@ import '../widgets/dashboard/app_top_bar.dart';
 import '../widgets/dashboard/attendance_hero_card.dart';
 import '../widgets/dashboard/greeting_header.dart';
 import '../widgets/dashboard/employee_info_hub_section.dart';
+import '../widgets/dashboard/recent_attendance_item.dart';
 import 'profile_screen.dart';
+import 'schedule_screen.dart';
 import 'task_assignment_screen.dart';
 import 'services_screen.dart';
 import 'sick_leave_screen.dart';
@@ -126,6 +128,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   division: updatedProfile.division,
                   jobPosition: updatedProfile.jobPosition,
                   leaveQuota: updatedQuota,
+                  shiftName: updatedProfile.shiftName,
+                  shiftHours: updatedProfile.shiftHours,
+                  shiftBreakHours: updatedProfile.shiftBreakHours,
                 )
               : updatedProfile;
           _recentAttendances = history;
@@ -214,6 +219,126 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     }
   }
 
+  void _openAttendanceHistoryModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.65,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.history_rounded, size: 20, color: AppTheme.primary),
+                      SizedBox(width: 8),
+                      Text(
+                        'Riwayat Presensi Realtime',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primarySubtle,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Total: ${_recentAttendances.length} Log',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Divider(height: 1, color: AppTheme.border),
+              const SizedBox(height: 14),
+              Expanded(
+                child: _recentAttendances.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: const BoxDecoration(
+                                color: AppTheme.surfaceAlt,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.history_toggle_off_rounded,
+                                size: 40,
+                                color: AppTheme.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            const Text(
+                              'Belum Ada Catatan Presensi',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Data kehadiran realtime Anda di Cloudflare D1 masih kosong.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        controller: scrollController,
+                        itemCount: _recentAttendances.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
+                        itemBuilder: (_, idx) =>
+                            RecentAttendanceItem(item: _recentAttendances[idx]),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _switchTab(int index) {
     if (_currentTabIndex != index) {
       setState(() {
@@ -297,8 +422,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                           : 'Belum ada permohonan pending',
                     );
                   },
-                  onHistoryLogTap: () => _showToast(
-                      'Riwayat kehadiran: ${_recentAttendances.length} log tersimpan'),
+                  onHistoryLogTap: _openAttendanceHistoryModal,
                   onReportLogTap: () => _showToast(
                       'Kehadiran bulan ini: $_monthlyPresenceDays hari kerja'),
                   onSickLeaveTap: () async {
@@ -317,10 +441,25 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   sickLeaveCount: _sickLeaveCount,
                   leaveQuota: _user.leaveQuota,
                   recentLeaves: _recentLeaves,
-                  onNavigateToSchedule: () => _switchTab(1),
+                  recentAttendances: _recentAttendances,
+                  shiftName: _user.shiftName,
+                  shiftHours: _user.shiftHours,
+                  shiftBreakHours: _user.shiftBreakHours,
+                  onNavigateToSchedule: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ScheduleScreen(
+                          currentUser: _user,
+                          onBackToHome: () => Navigator.pop(context),
+                        ),
+                      ),
+                    );
+                  },
                   onNavigateToLeaves: () => _switchTab(2),
                   onAnnouncementTap: () => _showToast(
                       'Sosialisasi Jam Kerja: Berlaku efektif mulai minggu ini.'),
+                  onHistoryLogTap: _openAttendanceHistoryModal,
                 ),
                 const SizedBox(height: 120), // Spasi agar tidak tertutup dock melayang
               ],

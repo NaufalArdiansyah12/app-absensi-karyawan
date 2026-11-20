@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import '../../../models/user_model.dart';
 import '../../../theme/app_theme.dart';
 import '../widgets/schedule/shift_timeline_view.dart';
 import '../widgets/schedule/weekly_strip_calendar.dart';
 
 class ScheduleScreen extends StatefulWidget {
+  final UserModel? currentUser;
   final VoidCallback? onBackToHome;
 
-  const ScheduleScreen({super.key, this.onBackToHome});
+  const ScheduleScreen({super.key, this.currentUser, this.onBackToHome});
 
   @override
   State<ScheduleScreen> createState() => _ScheduleScreenState();
@@ -195,7 +197,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             const SizedBox(height: 14),
 
             // Shift Timeline View
-            const ShiftTimelineView(),
+            ShiftTimelineView(
+              currentUser: widget.currentUser,
+              selectedDate: curDate,
+            ),
             const SizedBox(height: 120),
           ],
         ),

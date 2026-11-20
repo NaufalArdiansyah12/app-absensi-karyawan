@@ -1,11 +1,73 @@
 import 'package:flutter/material.dart';
+import '../../../models/user_model.dart';
 import '../../../../theme/app_theme.dart';
 
 class ShiftTimelineView extends StatelessWidget {
-  const ShiftTimelineView({super.key});
+  final UserModel? currentUser;
+  final DateTime? selectedDate;
+
+  const ShiftTimelineView({
+    super.key,
+    this.currentUser,
+    this.selectedDate,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final date = selectedDate ?? DateTime.now();
+    final isWeekend = date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
+
+    if (isWeekend) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: AppTheme.surfaceAlt,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.weekend_rounded, size: 36, color: AppTheme.textMuted),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Libur Akhir Pekan',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Tidak ada jadwal kerja aktif untuk hari ini.',
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final shiftName = currentUser?.shiftName?.trim().isNotEmpty == true
+        ? currentUser!.shiftName!
+        : 'Shift Reguler';
+    final shiftHours = currentUser?.shiftHours?.trim().isNotEmpty == true
+        ? currentUser!.shiftHours!
+        : '08:00 - 17:00 WIB';
+    final breakHours = currentUser?.shiftBreakHours?.trim().isNotEmpty == true
+        ? currentUser!.shiftBreakHours!
+        : '12:00 - 13:00 WIB';
+
+    final startTime = shiftHours.split(' ').first;
+    final breakStartTime = breakHours.split(' ').first;
+
     return Stack(
       children: [
         // Continuous Track Line
@@ -15,48 +77,38 @@ class ShiftTimelineView extends StatelessWidget {
           bottom: 24,
           child: Container(
             width: 2,
-            color: const Color(0xFFFECDD3),
+            color: const Color(0xFFE2E8F0),
           ),
         ),
 
-        // Shifts List
+        // Dynamic Shifts List
         Column(
           children: [
             _buildShiftNode(
-              time: '07:35',
-              dotColor: const Color(0xFFC81E1E),
-              ringColor: const Color(0xFFFFE4E6),
-              cardBg: AppTheme.roseSubtle,
-              cardBorder: AppTheme.roseBorder,
-              title: 'Morning shift',
-              accentColor: const Color(0xFFC81E1E),
-              scheduleSubtitle: 'Scheduled',
-              durationText: '07:35 : 09:35 (2hour)',
+              time: startTime,
+              dotColor: AppTheme.primary,
+              ringColor: AppTheme.primarySubtle,
+              cardBg: AppTheme.surface,
+              cardBorder: AppTheme.border,
+              title: shiftName,
+              accentColor: AppTheme.primary,
+              scheduleSubtitle: 'Jadwal Kerja Aktif',
+              durationText: shiftHours,
+              location: 'Kantor Pusat Nutrilife',
+              note: 'Wajib melakukan GPS Face check-in sebelum masuk kerja.',
             ),
             const SizedBox(height: 16),
             _buildShiftNode(
-              time: '13:30',
+              time: breakStartTime,
               dotColor: AppTheme.accent,
               ringColor: const Color(0xFFFEF3C7),
               cardBg: AppTheme.amberSubtle,
               cardBorder: AppTheme.amberBorder,
-              title: 'Afternoon shift',
+              title: 'Waktu Istirahat',
               accentColor: AppTheme.accent,
-              scheduleSubtitle: 'Scheduled',
-              durationText: '13:30 : 15:30 (2hour)',
-            ),
-            const SizedBox(height: 16),
-            _buildShiftNode(
-              time: '17:35',
-              dotColor: AppTheme.info,
-              ringColor: const Color(0xFFE0F2FE),
-              cardBg: AppTheme.skySubtle,
-              cardBorder: AppTheme.skyBorder,
-              title: 'Night shift',
-              accentColor: AppTheme.info,
-              scheduleSubtitle: '17:35 : 19:35 (1hour)',
-              location: 'Kantor Pusat - Jakarta',
-              note: 'Regular Schedule',
+              scheduleSubtitle: 'Istirahat Reguler',
+              durationText: breakHours,
+              note: 'Gunakan waktu istirahat secara proporsional.',
             ),
           ],
         ),

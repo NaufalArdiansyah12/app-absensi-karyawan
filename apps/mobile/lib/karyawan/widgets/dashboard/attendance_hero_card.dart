@@ -111,7 +111,7 @@ class _AttendanceHeroCardState extends State<AttendanceHeroCard> {
   }
 
   String _formatTimeDisplay(String? raw) {
-    if (raw == null || raw.trim().isEmpty || raw == '--:--') {
+    if (raw == null || raw.trim().isEmpty || raw == '--:--' || raw == '-') {
       return '--:--';
     }
     final parts = raw.split(':');
@@ -123,8 +123,14 @@ class _AttendanceHeroCardState extends State<AttendanceHeroCard> {
 
   @override
   Widget build(BuildContext context) {
-    final hasCheckedIn = widget.checkInTime != null && widget.checkInTime!.isNotEmpty;
-    final hasCheckedOut = widget.checkOutTime != null && widget.checkOutTime!.isNotEmpty;
+    final hasCheckedIn = widget.checkInTime != null &&
+        widget.checkInTime!.isNotEmpty &&
+        widget.checkInTime != '-' &&
+        widget.checkInTime != '--:--';
+    final hasCheckedOut = widget.checkOutTime != null &&
+        widget.checkOutTime!.isNotEmpty &&
+        widget.checkOutTime != '-' &&
+        widget.checkOutTime != '--:--';
 
     return Container(
       decoration: BoxDecoration(

@@ -1,9 +1,9 @@
 {
-  "name": "nutrilife-hris-root",
+  "name": "nutrilife-hris",
   "private": true,
   "scripts": {
-    "dev:web": "pnpm --filter web dev",
-    "build:web": "pnpm --filter web build",
-    "test": "node --test apps/web/tests/*.test.mjs"
+    "dev:web": "pnpm --dir apps/web dev",
+    "build:web": "pnpm --dir apps/web build",
+    "test": "cd apps/web && php artisan test"
   }
 }

@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
+import '../../../models/attendance_model.dart';
 import '../../../models/leave_model.dart';
 import '../../../../theme/app_theme.dart';
+import 'recent_attendance_item.dart';
 
 class EmployeeInfoHubSection extends StatelessWidget {
   final int monthlyPresenceDays;
   final int sickLeaveCount;
   final int leaveQuota;
   final List<LeaveModel> recentLeaves;
+  final List<AttendanceModel> recentAttendances;
+  final String? shiftName;
+  final String? shiftHours;
+  final String? shiftBreakHours;
   final VoidCallback onNavigateToSchedule;
   final VoidCallback onNavigateToLeaves;
   final VoidCallback onAnnouncementTap;
+  final VoidCallback? onHistoryLogTap;
 
   const EmployeeInfoHubSection({
     super.key,
@@ -17,9 +24,14 @@ class EmployeeInfoHubSection extends StatelessWidget {
     required this.sickLeaveCount,
     required this.leaveQuota,
     required this.recentLeaves,
+    this.recentAttendances = const [],
+    this.shiftName,
+    this.shiftHours,
+    this.shiftBreakHours,
     required this.onNavigateToSchedule,
     required this.onNavigateToLeaves,
     required this.onAnnouncementTap,
+    this.onHistoryLogTap,
   });
 
   @override
@@ -46,25 +58,146 @@ class EmployeeInfoHubSection extends StatelessWidget {
         ),
         const SizedBox(height: 12),
 
-        // 1. Kartu Jadwal Shift Hari Ini
+        // 1. Kartu Jadwal Shift Hari Ini (Dinamis dari Database)
         _buildTodayShiftCard(),
         const SizedBox(height: 12),
 
-        // 2. Kartu Status Pengajuan Cuti / Izin Terkini
+        // 2. Log Presensi Terkini / Empty State (Realtime D1)
+        _buildRecentAttendanceCard(),
+        const SizedBox(height: 12),
+
+        // 3. Kartu Status Pengajuan Cuti / Izin Terkini
         _buildRecentLeaveCard(latestLeave),
         const SizedBox(height: 12),
 
-        // 3. Banner Pengumuman & Memo HR
+        // 4. Banner Pengumuman & Memo HR
         _buildHrAnnouncementBanner(),
         const SizedBox(height: 12),
 
-        // 4. Ringkasan Metrik Jam Kerja & Hak Karyawan
+        // 5. Ringkasan Metrik Jam Kerja & Hak Karyawan
         _buildMetricsGrid(),
       ],
     );
   }
 
+  Widget _buildRecentAttendanceCard() {
+    if (recentAttendances.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: AppTheme.surfaceAlt,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.history_toggle_off_rounded,
+                size: 20,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Belum Ada Catatan Presensi',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Log kehadiran Anda di database masih kosong.',
+                    style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final topItems = recentAttendances.take(2).toList();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.history_rounded, size: 16, color: AppTheme.primary),
+                  SizedBox(width: 6),
+                  Text(
+                    'Presensi Terakhir',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              if (onHistoryLogTap != null)
+                InkWell(
+                  onTap: onHistoryLogTap,
+                  child: Text(
+                    'Lihat Semua (${recentAttendances.length}) →',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...topItems.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: RecentAttendanceItem(item: item),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTodayShiftCard() {
+    final activeShiftTitle = shiftName?.trim().isNotEmpty == true ? shiftName! : 'Shift Reguler';
+    final activeShiftHours = shiftHours?.trim().isNotEmpty == true ? shiftHours! : '08:00 - 17:00 WIB';
+    final activeBreakHours = shiftBreakHours?.trim().isNotEmpty == true ? shiftBreakHours! : '12:00 - 13:00 WIB';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -107,9 +240,9 @@ class EmployeeInfoHubSection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppTheme.secondary.withValues(alpha: 0.3)),
                 ),
-                child: const Text(
-                  'Shift Normal',
-                  style: TextStyle(
+                child: Text(
+                  activeShiftTitle,
+                  style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.secondary,
@@ -125,7 +258,7 @@ class EmployeeInfoHubSection extends StatelessWidget {
                 child: _buildShiftItem(
                   icon: Icons.access_time_filled_rounded,
                   label: 'Jam Kerja',
-                  value: '08:00 - 17:00 WIB',
+                  value: activeShiftHours,
                 ),
               ),
               Container(width: 1, height: 32, color: AppTheme.border),
@@ -133,7 +266,7 @@ class EmployeeInfoHubSection extends StatelessWidget {
                 child: _buildShiftItem(
                   icon: Icons.coffee_rounded,
                   label: 'Istirahat',
-                  value: '12:00 - 13:00 WIB',
+                  value: activeBreakHours,
                 ),
               ),
             ],

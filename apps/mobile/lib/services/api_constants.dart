@@ -1,5 +1,11 @@
 class ApiConstants {
-  static const String baseUrl = 'https://centrally-resolved-molly.ngrok-free.app/api';
+  // Set true only while a tunnel forwards to Laravel port 8000.
+  static const bool useNgrok = false;
+
+  static const String _ngrokUrl = 'https://centrally-resolved-molly.ngrok-free.app/api';
+  static const String _localUrl = 'http://localhost:8000/api';
+
+  static const String baseUrl = useNgrok ? _ngrokUrl : _localUrl;
 
   static const String login = '$baseUrl/auth/login';
   static const String me = '$baseUrl/auth/me';
